@@ -1,36 +1,129 @@
 name: SignLift
-main: au.net.fremnet.bukkit.SignLift.SignLift
-website: http://fremnet.net/
-version: 1.22
+main: org.unixminecraft.signlift.bukkit.SignLift
+website: https://github.com/unixminecraft/Bukkit-Signlift/
+version: 2.0.0
+api-version: 1.15
+
+softdepend: [Multiverse-Core]
+
+commands:
+  signlift:
+    description: Base command for all SignLift subcommands.
+    permission: signlift.command.signlift
+    permission-message: §r§cNo permission.§r
+    usage: §r§cUnknown command. Use§r §b/signlift help§r §cfor help.§r
+  shelp:
+    description: Short version of the /signlift help command.
+    permission: signlift.command.signlift.help
+    permission-message: §r§cNo permission.§r
+    usage: §r§cUnknown command. Use§r §b/signlift help§r §cfor help.§r
+  sinfo:
+    description: Short version of the /signlift info command.
+    permission: signlift.command.signlift.info
+    permission-message: §r§cNo permission.§r
+    usage: "§r§cSyntax:§r §b/signlift info§r"
+  smodify:
+    description: Short version of the /signlift modify command.
+    permission: signlift.command.signlift.modify
+    permission-message: §r§cNo permission.§r
+    usage: "§r§cSytnax:§r §b/signlift modify <players...>§r"
+  schangeowner:
+    description: Short version of the /signlift changeowner command.
+    permission: signlift.command.signlift.changeowner
+    permission-message: §r§cNo permission.§r
+    usage: "§r§cSyntax:§r §b/signlift changeowner <player>§r"
+
 permissions:
-    signlift.*:
-        description: Gives access to all SignLift privileges
-        children:
-            signlift.create.*: true
-            signlift.use.normal: true
-            signlift.use.private.own: true
-            signlift.use.private.other: true 
-    signlift.create.*:
-        description: Gives access to all SignLift create privileges
-        children:
-            signlift.create.normal: true
-            signlift.create.private.own: true
-            signlift.create.private.other: true
-    signlift.create.normal:
-        description: Permits the creation of a normal sign lifts for anyone to use
-        default: true
-    signlift.create.private.own:
-        description: Permits the creation of private sign lifts with the PRIVATE tag
-        default: true
-    signlift.create.private.others:
-        description: Permits the creation of private sign lifts for other users
-        default: true
-    signlift.use.normal:
-        description: Permits the use of any normal sign lift
-        default: true
-    signlift.use.private.own:
-        description: Permits the use of any private sign lift made for this user
-        default: true
-    signlift.use.private.others:
-        description: Permits the use of other users private lifts
-        default: op
+  signlift.*:
+    default: op
+    description: Ability to perform any action
+    children:
+      signlift.create.*: true
+      signlift.modify.*: true
+      signlift.remove.*: true
+      signlift.use.*: true
+      signlift.command.*: true
+  signlift.create.*:
+    default: op
+    description: Ability to create any lift signs
+    children:
+      signlift.create.public: true
+      signlift.create.private: true
+      signlift.create.admin: true
+  signlift.create.public:
+    default: true
+    description: Ability to create public lift signs
+  signlift.create.private:
+    default: true
+    description: Ability to create private lift signs owned by the player
+  signlift.create.admin:
+    default: op
+    description: Ability to assign private lift sign ownership to another player
+  signlift.modify.*:
+    default: op
+    description: Ability to modify any private lift sign
+    children:
+      signlift.modify.private: true
+      signlift.modify.admin: true
+  signlift.modify.private:
+    default: true
+    description: Ability to modify private lift sign membership by the owner
+  signlift.modify.admin:
+    default: op
+    description: Ability to modify private lift sign membership owned by another player
+  signlift.remove.*:
+    default: op
+    description: Ability to remove any lift sign
+    children:
+      signlift.remove.public: true
+      signlift.remove.private: true
+      signlift.remove.admin: true
+  signlift.remove.public:
+    default: true
+    description: Ability to remove public lift signs
+  signlift.remove.private:
+    default: true
+    description: Ability to remove private lift signs owned by the player
+  signlift.remove.admin:
+    default: op
+    description: Ability to remove private lift signs owned by another player
+  signlift.use.*:
+    default: op
+    description: Ability to use any lift sign
+    children:
+      signlift.use.public: true
+      signlift.use.private: true
+      signlift.use.admin: true
+  signlift.use.public:
+    default: true
+    description: Ability to use public lift signs
+  signlift.use.private:
+    default: true
+    description: Ability to use private lift signs owned by the player
+  signlift.use.admin:
+    default: op
+    description: Ability to use private lift signs owned by another player
+  signlift.command.*:
+    default: op
+    description: Ability to use any command.
+    children:
+      signlift.command.signlift: true
+      signlift.command.signlift.help: true
+      signlift.command.signlift.info: true
+      signlift.command.signlift.modify: true
+      signlift.command.signlift.changeowner: true
+  signlift.command.signlift:
+    default: true
+    description: Ability to use the /signlift base command
+  signlift.command.signlift.help:
+    default: true
+    description: Ability to use the help subcommand of the /signlift command
+  signlift.command.signlift.info:
+    default: true
+    description: Ability to use the info subcommand of the /signlift command
+  signlift.command.signlift.modify:
+    default: true
+    description: Ability to use the modify subcommand of the /signlift command
+  signlift.command.signlift.changeowner:
+    default: op
+    description: Ability to use the changeowner subcommand of the /signlift command

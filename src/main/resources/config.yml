@@ -1,26 +1,13 @@
-string:
-    lift: LIFT
-    down:
-        lift: LIFT DOWN
-        default: Going Down
-        format: Going to %s
-    normal:
-        open: '['
-        close: ']'
-    private:
-        open: '{'
-        close: '}'
-    up:
-        lift: LIFT UP
-        default: Going Up
-        format: Going to %s
-    message:
-        destroy:
-            denied: You don't have permission to destroy that sign lift
-        lift:
-            denied: You don't have permission to use this lift
-        create:
-            denied: You don't have permission to create that sign lift
-check:
-    destination:
-        paranoid: true
+check_destination: true
+
+liftsign:
+  direction:
+    none: LIFT
+    up: LIFT UP
+    down: LIFT DOWN
+  public:
+    open: '['
+    close: ']'
+  private:
+    open: '{'
+    close: '}'
