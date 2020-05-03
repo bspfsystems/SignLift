@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.unixminecraft.playerdata.bukkit;
+package org.unixminecraft.bukkit.playerdata;
 
 import java.util.HashMap;
 import java.util.Map;

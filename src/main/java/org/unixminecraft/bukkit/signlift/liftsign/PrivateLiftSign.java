@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.unixminecraft.signlift.bukkit.liftsign;
+package org.unixminecraft.bukkit.signlift.liftsign;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -33,9 +33,9 @@ import org.bukkit.block.BlockState;
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
 import org.bukkit.configuration.serialization.SerializableAs;
 import org.bukkit.entity.Player;
-import org.unixminecraft.signlift.bukkit.SignLift;
-import org.unixminecraft.signlift.bukkit.config.ConfigMessage;
-import org.unixminecraft.signlift.bukkit.exception.SignLiftException;
+import org.unixminecraft.bukkit.signlift.SignLift;
+import org.unixminecraft.bukkit.signlift.config.ConfigMessage;
+import org.unixminecraft.bukkit.signlift.exception.SignLiftException;
 
 @SerializableAs("private_lift_sign")
 public final class PrivateLiftSign extends LiftSign implements ConfigurationSerializable {

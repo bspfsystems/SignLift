@@ -3,15 +3,11 @@
   <modelVersion>4.0.0</modelVersion>
   <url>http://maven.apache.org</url>
   
-  <properties>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-  </properties>
-  
-  <groupId>org.unixminecraft.signlift.bukkit</groupId>
-  <artifactId>Bukkit-SignLift</artifactId>
+  <groupId>org.unixminecraft.bukkit.signlift</groupId>
+  <artifactId>SignLift-Bukkit</artifactId>
   <packaging>jar</packaging>
-  <version>2.0.0</version>
-  <name>Bukkit-SignLift</name>
+  <version>2.1.0</version>
+  <name>SignLift-Bukkit</name>
   
   <dependencies>
     <dependency>
@@ -42,5 +38,10 @@
       </plugin>
     </plugins>
   </build>
+  
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+  </properties>
   
 </project>

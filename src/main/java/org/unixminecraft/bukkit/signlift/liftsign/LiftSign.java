@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.unixminecraft.signlift.bukkit.liftsign;
+package org.unixminecraft.bukkit.signlift.liftsign;
 
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -26,10 +26,10 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Sign;
 import org.bukkit.entity.Player;
-import org.unixminecraft.signlift.bukkit.SignLift;
-import org.unixminecraft.signlift.bukkit.config.ConfigData;
-import org.unixminecraft.signlift.bukkit.config.ConfigMessage;
-import org.unixminecraft.signlift.bukkit.exception.SignLiftException;
+import org.unixminecraft.bukkit.signlift.SignLift;
+import org.unixminecraft.bukkit.signlift.config.ConfigData;
+import org.unixminecraft.bukkit.signlift.config.ConfigMessage;
+import org.unixminecraft.bukkit.signlift.exception.SignLiftException;
 
 public abstract class LiftSign {
 	

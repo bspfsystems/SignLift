@@ -18,13 +18,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.unixminecraft.signlift.bukkit;
+package org.unixminecraft.bukkit.signlift;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.UUID;
 
-import org.unixminecraft.signlift.bukkit.exception.SignLiftException;
+import org.unixminecraft.bukkit.signlift.exception.SignLiftException;
 
 final class ChangeData {
 	

@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.unixminecraft.signlift.bukkit;
+package org.unixminecraft.bukkit.signlift;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -45,15 +45,14 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.configuration.serialization.ConfigurationSerialization;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.unixminecraft.playerdata.bukkit.PlayerData;
-import org.unixminecraft.signlift.bukkit.config.ConfigData;
-import org.unixminecraft.signlift.bukkit.config.ConfigMessage;
-import org.unixminecraft.signlift.bukkit.exception.SignLiftException;
-import org.unixminecraft.signlift.bukkit.liftsign.LiftSign;
-import org.unixminecraft.signlift.bukkit.liftsign.PrivateLiftSign;
-import org.unixminecraft.signlift.bukkit.listener.SignLiftEventHandler;
+import org.unixminecraft.bukkit.playerdata.PlayerData;
+import org.unixminecraft.bukkit.signlift.config.ConfigData;
+import org.unixminecraft.bukkit.signlift.config.ConfigMessage;
+import org.unixminecraft.bukkit.signlift.exception.SignLiftException;
+import org.unixminecraft.bukkit.signlift.liftsign.LiftSign;
+import org.unixminecraft.bukkit.signlift.liftsign.PrivateLiftSign;
+import org.unixminecraft.bukkit.signlift.listener.SignLiftEventHandler;
 
 /**
  * SignLift for Bukkit
@@ -108,9 +107,6 @@ public final class SignLift extends JavaPlugin {
 		
 		ConfigData.loadConfig(getConfig());
 		ConfigMessage.loadMessages(getMessages());
-		
-		final PluginManager pluginManager = getServer().getPluginManager();
-		pluginManager.registerEvents(new SignLiftEventHandler(this), this);
 		
 		ConfigurationSerialization.registerClass(PlayerData.class);
 		ConfigurationSerialization.registerClass(PrivateLiftSign.class);
@@ -200,6 +196,8 @@ public final class SignLift extends JavaPlugin {
 		
 		pendingInformation = new HashSet<UUID>();
 		pendingModifications = new ConcurrentHashMap<UUID, ChangeData>();
+		
+		getServer().getPluginManager().registerEvents(new SignLiftEventHandler(this), this);
 	}
 	
 	@Override
@@ -420,8 +418,28 @@ public final class SignLift extends JavaPlugin {
 		}
 	}
 	
-	public List<String> onTabComplete(final String buffer, final CommandSender sender) {
+	public List<String> onTabComplete(final String buffer, final List<String> completions, final CommandSender sender) {
 		
+		if(!(sender instanceof Player)) {
+			if(completions.contains("/signlift")) {
+				completions.remove("/signlift");
+			}
+			if(completions.contains("/shelp")) {
+				completions.remove("/shelp");
+			}
+			if(completions.contains("/sinfo")) {
+				completions.remove("/sinfo");
+			}
+			if(completions.contains("/smodify")) {
+				completions.remove("/smodify");
+			}
+			if(completions.contains("/schangeowner")) {
+				completions.remove("/schangeowner");
+			}
+			return completions;
+		}
+		
+		final Player player = (Player) sender;
 		final Server server = getServer();
 		final ArrayList<String> splitCommand = new ArrayList<String>();
 		final String[] splitBuffer = buffer.split(" ");
@@ -440,78 +458,109 @@ public final class SignLift extends JavaPlugin {
 		}
 		
 		if(splitCommand.isEmpty()) {
-			return null;
+			return completions;
 		}
 		
+		final boolean permissionSignlift = player.hasPermission("signlift.command.signlift");
+		final boolean permissionSignliftHelp = player.hasPermission("signlift.command.signlift.help");
+		final boolean permissionSignliftInfo = player.hasPermission("signlift.command.signlift.info");
+		final boolean permissionSignliftModify = player.hasPermission("signlift.command.signlift.modify");
+		final boolean permissionSignliftChangeowner = player.hasPermission("signlift.command.signlift.changeowner");
+		
 		final String commandName = splitCommand.remove(0);
+		if(splitCommand.isEmpty() && !endsWithSpace) {
+			if(completions.contains("/signlift") && !permissionSignlift) {
+				completions.remove("/signlift");
+			}
+			if(completions.contains("/shelp") && !permissionSignlift && !permissionSignliftHelp) {
+				completions.remove("/shelp");
+			}
+			if(completions.contains("/sinfo") && !permissionSignlift && !permissionSignliftInfo) {
+				completions.remove("/sinfo");
+			}
+			if(completions.contains("/smodify") && !permissionSignlift && !permissionSignliftModify) {
+				completions.remove("/smodify");
+			}
+			if(completions.contains("/schangeowner") && !permissionSignlift && !permissionSignliftChangeowner) {
+				completions.remove("/schangeowner");
+			}
+			return completions;
+		}
+		
 		if(commandName.equals("signlift")) {
+			completions.clear();
 			
-			final ArrayList<String> subCommandNames = new ArrayList<String>();
 			if(sender.hasPermission(server.getPluginCommand("shelp").getPermission())) {
-				subCommandNames.add("help");
+				completions.add("help");
 			}
 			if(sender.hasPermission(server.getPluginCommand("sinfo").getPermission())) {
-				subCommandNames.add("info");
+				completions.add("info");
 			}
 			if(sender.hasPermission(server.getPluginCommand("smodify").getPermission())) {
-				subCommandNames.add("modify");
+				completions.add("modify");
 			}
 			if(sender.hasPermission(server.getPluginCommand("schangeowner").getPermission())) {
-				subCommandNames.add("changeowner");
+				completions.add("changeowner");
 			}
 			
 			if(splitCommand.isEmpty()) {
-				return subCommandNames;
+				return completions;
 			}
 			
 			final String subCommandName = splitCommand.remove(0);
 			if(!endsWithSpace) {
 				
-				final Iterator<String> subCommandNamesIterator = subCommandNames.iterator();
-				while(subCommandNamesIterator.hasNext()) {
-					if(!subCommandNamesIterator.next().toLowerCase().startsWith(subCommandName.toLowerCase())) {
-						subCommandNamesIterator.remove();
+				final Iterator<String> completionsIterator = completions.iterator();
+				while(completionsIterator.hasNext()) {
+					if(!completionsIterator.next().toLowerCase().startsWith(subCommandName.toLowerCase())) {
+						completionsIterator.remove();
 					}
 				}
-				return subCommandNames;
+				return completions;
 			}
 			
+			completions.clear();
+			
 			if(subCommandName.equals("help")) {
-				return new ArrayList<String>();
+				return completions;
 			}
 			else if(subCommandName.equals("info")) {
-				return new ArrayList<String>();
+				return completions;
 			}
 			else if(subCommandName.equals("modify")) {
-				return getPlayerSuggestions(splitCommand, endsWithSpace);
+				return getPlayerSuggestions(completions, splitCommand, endsWithSpace);
 			}
 			else if(subCommandName.equals("changeowner")) {
 				if(!splitCommand.isEmpty()) {
-					return new ArrayList<String>();
+					return completions;
 				}
-				return getPlayerSuggestions(splitCommand, endsWithSpace);
+				return getPlayerSuggestions(completions, splitCommand, endsWithSpace);
 			}
 			else {
-				return null;
+				return completions;
 			}
 		}
 		else if(commandName.equals("shelp")) {
-			return new ArrayList<String>();
+			completions.clear();
+			return completions;
 		}
 		else if(commandName.equals("sinfo")) {
-			return new ArrayList<String>();
+			completions.clear();
+			return completions;
 		}
 		else if(commandName.equals("smodify")) {
-			return getPlayerSuggestions(splitCommand, endsWithSpace);
+			completions.clear();
+			return getPlayerSuggestions(completions, splitCommand, endsWithSpace);
 		}
 		else if(commandName.equals("schangeowner")) {
+			completions.clear();
 			if(!splitCommand.isEmpty()) {
-				return new ArrayList<String>();
+				return completions;
 			}
-			return getPlayerSuggestions(splitCommand, endsWithSpace);
+			return getPlayerSuggestions(completions, splitCommand, endsWithSpace);
 		}
 		else {
-			return null;
+			return completions;
 		}
 	}
 	
@@ -957,18 +1006,19 @@ public final class SignLift extends JavaPlugin {
 		return true;
 	}
 	
-	private ArrayList<String> getPlayerSuggestions(final ArrayList<String> splitCommand, final boolean endsWithSpace) {
+	private List<String> getPlayerSuggestions(final List<String> completions, final ArrayList<String> splitCommand, final boolean endsWithSpace) {
 		
-		final HashSet<String> rawPlayers = new HashSet<String>();
 		for(final Player player : getServer().getOnlinePlayers()) {
-			rawPlayers.add(player.getName());
+			completions.add(player.getName());
 		}
 		for(final String player : uniqueIdToName.values()) {
-			rawPlayers.add(player);
+			if(!completions.contains(player)) {
+				completions.add(player);
+			}
 		}
 		
 		if(splitCommand.isEmpty() || endsWithSpace) {
-			return new ArrayList<String>(rawPlayers);
+			return completions;
 		}
 		
 		final String lastPlayer = splitCommand.get(splitCommand.size() - 1);
@@ -983,19 +1033,18 @@ public final class SignLift extends JavaPlugin {
 			prefix = "";
 		}
 		
-		final ArrayList<String> players = new ArrayList<String>(rawPlayers);
-		for(int index = 0; index < players.size(); index++) {
-			players.set(index, prefix + players.get(index));
+		for(int index = 0; index < completions.size(); index++) {
+			completions.set(index, prefix + completions.get(index));
 		}
 		
-		final Iterator<String> playerIterator = players.iterator();
-		while(playerIterator.hasNext()) {
-			if(!playerIterator.next().toLowerCase().startsWith(lastPlayer.toLowerCase())) {
-				playerIterator.remove();
+		final Iterator<String> completionsIterator = completions.iterator();
+		while(completionsIterator.hasNext()) {
+			if(!completionsIterator.next().toLowerCase().startsWith(lastPlayer.toLowerCase())) {
+				completionsIterator.remove();
 			}
 		}
 		
-		return players;
+		return completions;
 	}
 	
 	private boolean savePlayerData(final PlayerData playerData) {

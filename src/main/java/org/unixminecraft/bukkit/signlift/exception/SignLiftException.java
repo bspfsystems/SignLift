@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.unixminecraft.signlift.bukkit.exception;
+package org.unixminecraft.bukkit.signlift.exception;
 
 public final class SignLiftException extends Exception {
 

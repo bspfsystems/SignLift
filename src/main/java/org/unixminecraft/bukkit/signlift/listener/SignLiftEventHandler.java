@@ -18,10 +18,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.unixminecraft.signlift.bukkit.listener;
+package org.unixminecraft.bukkit.signlift.listener;
 
 import java.util.ArrayList;
-import java.util.List;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -47,13 +46,13 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.server.TabCompleteEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
-import org.unixminecraft.signlift.bukkit.SignLift;
-import org.unixminecraft.signlift.bukkit.config.ConfigData;
-import org.unixminecraft.signlift.bukkit.config.ConfigMessage;
-import org.unixminecraft.signlift.bukkit.exception.SignLiftException;
-import org.unixminecraft.signlift.bukkit.liftsign.LiftSign;
-import org.unixminecraft.signlift.bukkit.liftsign.PrivateLiftSign;
-import org.unixminecraft.signlift.bukkit.liftsign.PublicLiftSign;
+import org.unixminecraft.bukkit.signlift.SignLift;
+import org.unixminecraft.bukkit.signlift.config.ConfigData;
+import org.unixminecraft.bukkit.signlift.config.ConfigMessage;
+import org.unixminecraft.bukkit.signlift.exception.SignLiftException;
+import org.unixminecraft.bukkit.signlift.liftsign.LiftSign;
+import org.unixminecraft.bukkit.signlift.liftsign.PrivateLiftSign;
+import org.unixminecraft.bukkit.signlift.liftsign.PublicLiftSign;
 
 public final class SignLiftEventHandler implements Listener {
 	
@@ -516,13 +515,7 @@ public final class SignLiftEventHandler implements Listener {
 	
 	@EventHandler
 	public void onTabComplete(final TabCompleteEvent event) {
-		
-		final List<String> completions = plugin.onTabComplete(event.getBuffer(), event.getSender());
-		if(completions == null) {
-			return;
-		}
-		
-		event.setCompletions(completions);
+		event.setCompletions(plugin.onTabComplete(event.getBuffer(), event.getCompletions(), event.getSender()));
 	}
 	
 	private Material getSignToDrop(final Player player) {

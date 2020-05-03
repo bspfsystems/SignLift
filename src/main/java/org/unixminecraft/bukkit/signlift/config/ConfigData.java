@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.unixminecraft.signlift.bukkit.config;
+package org.unixminecraft.bukkit.signlift.config;
 
 import org.bukkit.configuration.file.FileConfiguration;
 
