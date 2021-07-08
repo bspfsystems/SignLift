@@ -1,8 +1,11 @@
 /*
- * SignLift Bukkit plugin for Minecraft
+ * This file is part of the SignLift plugin for
+ * Bukkit servers for Minecraft.
+ * 
  * Copyright (C) 2011       Shannon Wynter (http://fremnet.net/)
- * Copyright (C) 2012       GoalieGuy6 (https://github.com/goalieguy6)
- * Copyright (C) 2018,2020  Matt Ciolkosz (https://github.com/mciolkosz)
+ * Copyright (C) 2012       GoalieGuy6 (https://github.com/goalieguy6/)
+ * Copyright (C) 2018,2020  Matt Ciolkosz (https://github.com/mciolkosz/)
+ * Copyright (C) 2021		BSPF Systems, LLC (https://bspfsystems.org/)
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

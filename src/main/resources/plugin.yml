@@ -1,8 +1,8 @@
-name: SignLift
-main: org.unixminecraft.bukkit.signlift.SignLift
-website: https://github.com/unixminecraft/Bukkit-Signlift/
-version: 2.1.0
-api-version: 1.15
+name: SignLiftPlugin
+main: org.unixminecraft.signlift.bukkit.SignLiftPlugin
+website: https://github.com/bspfsystems/SignLift/
+version: 2.1.1
+api-version: 1.16
 
 softdepend: [Multiverse-Core]
 
