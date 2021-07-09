@@ -1,13 +1,119 @@
+################################################################################
+################################################################################
+##                                                                            ##
+##                     SignLift Configuration for Bukkit                      ##
+##                                                                            ##
+## SOURCE CODE: https://github.com/bspfsystems/SignLift/                      ##
+## BUGS / ISSUES: https://github.com/bspfsystems/SignLift/issues/             ##
+##                                                                            ##
+## New configuration items will not be added to this file automatically. You  ##
+## can obtain an update version of the default config.yml file from           ##
+## https://bspfsystems.org/config-files/signlift/bukkit/                      ##
+##                                                                            ##
+## This file may also be called "signlift.yml". If both "signlift.yml" and    ##
+## "config.yml" are present in this plugin's configuration directory, the     ##
+## "signlift.yml" file will be preferred over the "config.yml" file.          ##
+##                                                                            ##
+################################################################################
+################################################################################
+
+# Check the destination LiftSign for safety.
+#
+# - This will prevent a Player from using a LiftSign that can teleport them into
+#   an unsafe situation (into a wall, more than a few blocks in the air, etc).
+# - The default setting is "true". This setting will also accept a
+#   case-insensitive String indicating true or false (or common values such as
+#   "TRUE", "T", "false", "f", etc). If this setting is missing, null, or
+#   otherwise blank, the default will be used (true). If it is a String and is
+#   set to an invalid value, "true" will be used, and the setting will be
+#   cleared and replaced with a the true Boolean.
 check_destination: true
 
-liftsign:
-  direction:
-    none: LIFT
-    up: LIFT UP
-    down: LIFT DOWN
-  public:
-    open: '['
-    close: ']'
-  private:
-    open: '{'
-    close: '}'
+# Allow teleporting to the same relative (X,Z) location.
+#
+# - If true, the Player that uses the lift sign will only be teleported
+#   vertically, and stay in the same relative location compared to the
+#   LiftSign. This has the unintended consequence of allowing Players to get
+#   into areas they may not have otherwise been able to.
+# - If set to false, the Player will be teleported into the block 1 over from
+#   the direction the LiftSign is facing. For example, if the LiftSign is in
+#   (0,64,0) and facing South (towards +Z), then the Player will be teleported
+#   to (0,64,1).
+# - For floor-placed LiftSigns facing an Ordinal direction (NE/SE/SW/NW), the
+#   Player will be teleported to the block in that direction (0,64,0) facing SE
+#   will go to (1,64,1).
+# - For floor-placed LiftSigns not facing one of the above directions, the
+#   Player will be teleported into the Block in the direction that the LiftSign
+#   primarily faces (0,64,0) facing ESE will go to (1,64,0).
+# - The default setting is "true". This setting will also accept a
+#   case-insensitive String indicating true or false (or common values such as
+#   "TRUE", "T", "false", "f", etc). If this setting is missing, null, or
+#   otherwise blank, the default will be used (true). If it is a String and is
+#   set to an invalid value, "true" will be used, and the setting will be
+#   cleared and replaced with a the true Boolean.
+relative_teleporting: true
+
+# LiftSign indication directions.
+#
+# - These labels allow LiftSigns to specify which direction they will take the
+#   Player. A given LiftSign can be configured to go 1 of 3 directions when
+#   activated (right-clicked): up, down, and nowhere (no actions taken when
+#   used).
+# - These labels MUST be placed on the 2nd line of a LiftSign, immediately
+#   preceded by either the Public OR Private LiftSign start indicator, and
+#   immediately followed by the matching LiftSign end indicator. The indicators
+#   may NOT be mixed (one Private and one Public), and there can be no extra
+#   spacing (or missing if the direction labels have spacing before/after).
+# - The labels are not case-sensitive, so the following would all function the
+#   same. Please note that the spaces DO matter though, so adding or removing
+#   any spaces before, in, or after the labels will not function the same.
+#   - LIFT DOWN
+#   - Lift Down
+#   - lift down
+#   - LIfT dOWn
+# - The defaults are listed below. If a particular setting is missing, null, or
+#   otherwise blank, the defaults will be used.
+#   - Up   : LIFT UP
+#   - Down : LIFT DOWN
+#   - None : LIFT
+direction_up: LIFT UP
+direction_down: LIFT DOWN
+direction_none: LIFT
+
+# Public LiftSign indicators.
+#
+# - These are used to indicate a LiftSign and differentiate them from other
+#   Signs that Players may create in-game. Specifically, these will be used on
+#   Public LiftSigns.
+# - These values MUST be on the 2nd line of the Sign, and surrounding the
+#   LiftSign direction label with no extra (or missing, if applicable) spacing.
+# - Both indicators MUST be Public, and be in the correct order
+#   (start -> label -> end).
+# - It is highly recommended to leave these as the default values, as it makes
+#   creating a Public LiftSign much simpler as they are values that have an
+#   "open" and "close" feel to them.
+# - The defaults are listed below. If a particular setting is missing, null, or
+#   otherwise blank, the defaults will be used.
+#   - start: '['
+#   - end: ']'
+public_start: '['
+public_end: ']'
+
+# Private LiftSign indicators.
+#
+# - These are used to indicate a LiftSign and differentiate them from other
+#   Signs that Players may create in-game. Specifically, these will be used on
+#   Private LiftSigns.
+# - These values MUST be on the 2nd line of the Sign, and surrounding the
+#   LiftSign direction label with no extra (or missing, if applicable) spacing.
+# - Both indicators MUST be Private, and be in the correct order
+#   (start -> label -> end).
+# - It is highly recommended to leave these as the default values, as it makes
+#   creating a Private LiftSign much simpler as they are values that have an
+#   "open" and "close" feel to them.
+# - The defaults are listed below. If a particular setting is missing, null, or
+#   otherwise blank, the defaults will be used.
+#   - start: '{'
+#   - end: '}'
+private_start: '{'
+private_end: '}'
