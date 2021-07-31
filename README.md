@@ -6,7 +6,7 @@ A plugin for Minecraft Bukkit servers that enables signs to become lifts (think 
 
 You can download the latest version of the plugin from [here](https://github.com/bspfsystems/SignLift/releases/latest/).
 
-The latest release is 2.1.1.
+The latest release is 2.2.0.
 
 ## Build from Source
 
@@ -81,8 +81,8 @@ While most of the time, no commands will be needed for LiftSigns (Public is the 
 **Base SignLift Command:** The base command for all SignLift commands. If this command has no arguments, a list of all subcommands that the sender has permission to use, and their respective syntax, will be displayed. **Please Note:** This permission **MUST** be granted to all that wish to use any SignLift subcommand (or any short commands).
 - `/signlift` - `signlift.command.signlift`
 
-**Reload Command:** Reloads the configuration file, updating any values for the in-game lift functionality **Please Note:** Changing these values can/will cause current LiftSigns to no longer function.
-- `/signlift reload` - `signlift.command.signlift.reload`
+**Reload Command:** Base command for reloading the various configuration files. **Please Note:** There are subcommands for this subcommand, depending on the item wanting to be reloaded. More information can be found in the help command.
+- `/signlift reload <arg>` - `signlift.command.signlift.reload`
 
 **Help Command:** Displays all available SignLift subcommands that the Player has permission to use.
 - `/signlift help` - `signlift.command.signlift.help`

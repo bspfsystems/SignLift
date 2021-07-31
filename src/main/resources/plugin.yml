@@ -1,7 +1,7 @@
 name: SignLiftPlugin
-main: org.unixminecraft.signlift.bukkit.SignLiftPlugin
+main: org.bspfsystems.signlift.bukkit.SignLiftPlugin
 website: https://github.com/bspfsystems/SignLift/
-version: 2.1.1
+version: 2.2.0
 api-version: 1.16
 
 softdepend: [Multiverse-Core]
@@ -10,27 +10,32 @@ commands:
   signlift:
     description: Base command for all SignLift subcommands.
     permission: signlift.command.signlift
-    permission-message: §r§cNo permission.§r
-    usage: §r§cUnknown command. Use§r §b/signlift help§r §cfor help.§r
+    permission-message: "§r§cI'm sorry, but you do not have permission to perform this command. Please contact the server administrators if you believe that this is in error.§r"
+    usage: "§r§cUnknown command. Use§r §b/signlift help§r §cfor help.§r"
+  sreload:
+    description: Short version of the /signlift reload command.
+    permission: signlift.command.signlift.reload
+    permission-message: "§r§cI'm sorry, but you do not have permission to perform this command. Please contact the server administrators if you believe that this is in error.§r"
+    usage: "§r§cUnknown command. Use§r §b/signlift help§r §cfor help.§r"
   shelp:
     description: Short version of the /signlift help command.
     permission: signlift.command.signlift.help
-    permission-message: §r§cNo permission.§r
-    usage: §r§cUnknown command. Use§r §b/signlift help§r §cfor help.§r
+    permission-message: "§r§cI'm sorry, but you do not have permission to perform this command. Please contact the server administrators if you believe that this is in error.§r"
+    usage: "§r§cUnknown command. Use§r §b/signlift help§r §cfor help.§r"
   sinfo:
     description: Short version of the /signlift info command.
     permission: signlift.command.signlift.info
-    permission-message: §r§cNo permission.§r
+    permission-message: "§r§cI'm sorry, but you do not have permission to perform this command. Please contact the server administrators if you believe that this is in error.§r"
     usage: "§r§cSyntax:§r §b/signlift info§r"
   smodify:
     description: Short version of the /signlift modify command.
     permission: signlift.command.signlift.modify
-    permission-message: §r§cNo permission.§r
-    usage: "§r§cSytnax:§r §b/signlift modify <players...>§r"
+    permission-message: "§r§cI'm sorry, but you do not have permission to perform this command. Please contact the server administrators if you believe that this is in error.§r"
+    usage: "§r§cSyntax:§r §b/signlift modify <players...>§r"
   schangeowner:
     description: Short version of the /signlift changeowner command.
     permission: signlift.command.signlift.changeowner
-    permission-message: §r§cNo permission.§r
+    permission-message: "§r§cI'm sorry, but you do not have permission to perform this command. Please contact the server administrators if you believe that this is in error.§r"
     usage: "§r§cSyntax:§r §b/signlift changeowner <player>§r"
 
 permissions:
@@ -108,6 +113,8 @@ permissions:
     description: Ability to use any command.
     children:
       signlift.command.signlift: true
+      signlift.command.signlift.reload: true
+      signlift.command.signlift.reload.*: true
       signlift.command.signlift.help: true
       signlift.command.signlift.info: true
       signlift.command.signlift.modify: true
@@ -115,6 +122,21 @@ permissions:
   signlift.command.signlift:
     default: true
     description: Ability to use the /signlift base command
+  signlift.command.signlift.reload:
+    default: op
+    description: Ability to use the /signlift reload command
+  signlift.command.signlift.reload.*:
+    default: op
+    description: Ability to use any /signlift reload command
+    children:
+      signlift.command.signlift.reload.config: true
+      signlift.command.signlift.reload.messages: true
+  signlift.command.signlift.reload.config:
+    default: op
+    description: Ability to use the /signlift reload config command
+  signlift.command.signlift.reload.messages:
+    default: op
+    description: Ability to use the /signlift reload message command
   signlift.command.signlift.help:
     default: true
     description: Ability to use the help subcommand of the /signlift command

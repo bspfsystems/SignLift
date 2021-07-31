@@ -1,11 +1,22 @@
+################################################################################
+################################################################################
+##                                                                            ##
+##                        SignLift Messages for Bukkit                        ##
+##                                                                            ##
+## SOURCE CODE: https://github.com/bspfsystems/SignLift/                      ##
+## BUGS / ISSUES: https://github.com/bspfsystems/SignLift/issues/             ##
+##                                                                            ##
+## New message items will not be added to this file automatically. You can    ##
+## obtain an update version of the default messages.yml file from             ##
+## https://bspfsystems.org/message-files/signlift/bukkit/                     ##
+##                                                                            ##
+################################################################################
+################################################################################
+
 command:
-  info:
-    default: §r§3Left-click on a lift sign to see information about it.§r
-  modify:
-    default: §r§3Left-click on a private lift sign to make your changes.§r
-  deny:
-    permission: §r§cNo permission.§r
-    player: §r§cOnly players may use this command.§r
+  info: §r§bLeft-click on a lift sign to see information about it.§r
+  modify: §r§bLeft-click on a private lift sign to make your changes.§r
+  deny: §r§cOnly players may use this command.§r
 
 liftsign:
   info:
@@ -13,54 +24,53 @@ liftsign:
     private: §r§aThis is a private lift sign.§r
     error: §r§cInternal error, please try again. If the issue persists, please contact a server administrator.§r
     deny: §r§cThat is not a liftsign.§r
-  maintain:
-    build:
-      deny:
-        public: §r§cYou cannot build on a lift sign.§r
-        private: §r§cYou cannot build on a private lift sign.§r
-    create:
-      public:
-        allow: §r§aLift sign created.§r
-        deny: §r§cYou do not have permission to create a lift sign.§r
-      private:
-        allow: §r§aPrivate lift sign created.§r
-        deny: §r§cYou do not have permission to create a private lift sign.§r
-    modify:
-      public:
-        deny: §r§cPublic lift signs cannot be modified.§r
-      private:
-        owner:
-          allow: §r§6%%player%%§r §bhas been made owner.§r
-          deny: §r§cYou cannot change the owner of this private lift sign.§r
-        admin:
-          true: §r§a%%player%%§r §bhas been added as an admin.§r
-          change: §r§a%%player%%§r §bhas been changed to an admin.§r
-          false: §r§6%%player%%§r §bis already an admin.§r
-          deny: §r§cYou cannot change the admins of this private lift sign.§r
-        member:
-          true: §r§a%%player%%§r §bhas been added as a member.§r
-          change: §r§a%%player%%§r §bhas been changed to a member.§r
-          false: §r§6%%player%%§r §bis already a member.§r
-          deny: §r§cYou do not have permission to modify this private lift sign.§r
-        remove:
-          true: §r§a%%player%%§r §bhas been removed.§r
-          false: §r§6%%player%%§r §bis not a member or admin.§r
-          deny: §r§cYou do not have permission to modify this private lift sign.§r
-        unknown:
-          unknown: §r§cUnknown player %%player%%.§r
-          deny: §r§cYou do not have permission to modify this private lift sign.§r
-      other:
-        deny: §r§cThis is not a lift sign.§r
-    remove:
-      public:
-        allow: §r§aLift sign removed.§r
-        deny: §r§cYou do not have permission to remove this lift sign.§r
-      private:
-        allow: §r§aPrivate lift sign removed.§r
-        deny: §r§cYou do not have permission to remove this private lift sign.§r
-      multiple:
-        allow: §r§aLift sign(s) removed.§r
-        deny: §r§cYou do not have permission to remove these lift sign(s).§r
+  build:
+    deny:
+      public: §r§cYou cannot build on a lift sign.§r
+      private: §r§cYou cannot build on a private lift sign.§r
+  create:
+    public:
+      allow: §r§aLift sign created.§r
+      deny: §r§cYou do not have permission to create a lift sign.§r
+      error: §r§cThere was an error while creating the lift sign. Please try again. If the issue persists, please contact a server administrator.§r
+    private:
+      allow: §r§aPrivate lift sign created.§r
+      deny: §r§cYou do not have permission to create a private lift sign.§r
+      error: §r§cThere was an error while creating the private lift sign. Please try again. If the issue persists, please contact a server administrator.§r
+  modify:
+    public: §r§cPublic lift signs cannot be modified.§r
+    private:
+      owner:
+        allow: §r§6%%player%%§r §bhas been made owner.§r
+        deny: §r§cYou cannot change the owner of this private lift sign.§r
+      admin:
+        true: §r§a%%player%%§r §bhas been added as an admin.§r
+        change: §r§a%%player%%§r §bhas been changed to an admin.§r
+        false: §r§6%%player%%§r §bis already an admin.§r
+        deny: §r§cYou cannot change the admins of this private lift sign.§r
+      member:
+        true: §r§a%%player%%§r §bhas been added as a member.§r
+        change: §r§a%%player%%§r §bhas been changed to a member.§r
+        false: §r§6%%player%%§r §bis already a member.§r
+        deny: §r§cYou do not have permission to modify this private lift sign.§r
+      remove:
+        true: §r§a%%player%%§r §bhas been removed.§r
+        false: §r§6%%player%%§r §bis not a member or admin.§r
+        deny: §r§cYou do not have permission to modify this private lift sign.§r
+      unknown:
+        unknown: §r§cUnknown player %%player%%.§r
+        deny: §r§cYou do not have permission to modify this private lift sign.§r
+    other: §r§cThis is not a lift sign.§r
+  remove:
+    public:
+      allow: §r§aLift sign removed.§r
+      deny: §r§cYou do not have permission to remove this lift sign.§r
+    private:
+      allow: §r§aPrivate lift sign removed.§r
+      deny: §r§cYou do not have permission to remove this private lift sign.§r
+    attached:
+      allow: §r§aAttached lift sign(s) removed.§r
+      deny: §r§cYou do not have permission to remove the attached lift sign(s).§r
   use:
     none:
       default: §r§cThis lift sign does not go anywhere.§r
