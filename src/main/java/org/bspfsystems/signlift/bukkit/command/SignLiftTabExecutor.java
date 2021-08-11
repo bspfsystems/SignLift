@@ -2,6 +2,8 @@ package org.bspfsystems.signlift.bukkit.command;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -61,7 +63,7 @@ public final class SignLiftTabExecutor implements TabExecutor {
     
         final Player player = (Player) sender;
         final Server server = this.signLiftPlugin.getServer();
-        final ArrayList<String> argsList = new ArrayList<String>(Arrays.asList(args));
+        final List<String> argsList = Arrays.asList(args);
     
         if (commandName.equalsIgnoreCase("signlift")) {
             if (argsList.isEmpty()) {
@@ -136,7 +138,7 @@ public final class SignLiftTabExecutor implements TabExecutor {
                     player.sendMessage(smodifyCommand.getUsage());
                     return true;
                 }
-                return this.modifyCommand(player, argsList, true);
+                return this.modifyCommand(player, argsList);
             } else if (subCommand.equalsIgnoreCase("changeowner")) {
     
                 final PluginCommand schangeownerCommand = server.getPluginCommand("schangeowner");
@@ -192,7 +194,7 @@ public final class SignLiftTabExecutor implements TabExecutor {
             if (argsList.isEmpty()) {
                 return false;
             }
-            return this.modifyCommand(player, argsList, false);
+            return this.modifyCommand(player, argsList);
         } else if (commandName.equalsIgnoreCase("schangeowner")) {
             
             if (!this.checkShortCommand(player, commandName, args)) {
@@ -306,107 +308,340 @@ public final class SignLiftTabExecutor implements TabExecutor {
         }
         
         for (final String allowedCommand : allowedCommands) {
-            player.sendMessage("§r§f -§r §a" + allowedCommand + "§r");
+            player.sendMessage("§r §f-§r §a" + allowedCommand + "§r");
         }
         
         player.sendMessage("§r§8================================§r");
         return true;
     }
     
-    private boolean infoCommand(final Player player) {
-        
+    /**
+     * Performs the main functionality of the info command.
+     *
+     * @param player The {@link Player} executing the command.
+     * @return {@code true} if command execution was successful, {@code false}
+     *         otherwise.
+     */
+    private boolean infoCommand(@NotNull final Player player) {
         player.sendMessage(ConfigMessage.getCommandInfo());
-        pendingInformation.add(player.getUniqueId());
+        this.signLiftPlugin.addPendingInformation(player.getUniqueId());
         return true;
     }
     
-    private boolean modifyCommand(final Player player, final String[] args, final boolean skipFirst) {
-        
-        int index;
-        if(skipFirst) {
-            index = 1;
-        }
-        else {
-            index = 0;
-        }
+    /**
+     * Performs the main functionality of the modify command.
+     *
+     * @param player The {@link Player} executing the command.
+     * @param argsList The {@link List} of the command-line arguments (with the
+     *                 already-parsed args removed).
+     * @return {@code true} if command execution was successful, {@code false}
+     *         otherwise.
+     */
+    private boolean modifyCommand(@NotNull final Player player, @NotNull final List<String> argsList) {
         
         final ChangeData changeData = new ChangeData();
-        for(; index < args.length; index++) {
+        for (final String arg : argsList) {
             
-            String playerName = args[index];
-            
-            if(playerName.startsWith("@")) {
-                
-                playerName = playerName.substring(1);
-                final UUID admin = nameToUniqueId.get(playerName.toLowerCase());
-                if(admin == null) {
-                    changeData.addUnknown(playerName);
+            if (arg.startsWith("@")) {
+                final String name = arg.substring(1);
+                final UUID uniqueId = this.signLiftPlugin.getUniqueId(name);
+                if (uniqueId == null) {
+                    changeData.addUnknown(name);
                     continue;
                 }
                 
                 try {
-                    changeData.addAdmin(admin);
-                }
-                catch(SignLiftException e) {
+                    if (!changeData.addAdmin(uniqueId)) {
+                        player.sendMessage("§r§6Warning: You have specified§r §b" + name + "§r §6multiple times. They will only be added as an admin once.§r");
+                    }
+                } catch (SignLiftException e) {
                     player.sendMessage("§r§c" + e.getMessage() + "§r");
                     return true;
                 }
-            }
-            else if(playerName.startsWith("-")) {
-                
-                playerName = playerName.substring(1);
-                final UUID removal = nameToUniqueId.get(playerName.toLowerCase());
-                if(removal == null) {
-                    changeData.addUnknown(playerName);
+            } else if (arg.startsWith("-")) {
+                final String name = arg.substring(1);
+                final UUID uniqueId = this.signLiftPlugin.getUniqueId(name);
+                if (uniqueId == null) {
+                    changeData.addUnknown(name);
                     continue;
                 }
                 
                 try {
-                    changeData.remove(removal);
-                }
-                catch(SignLiftException e) {
+                    if (!changeData.remove(uniqueId)) {
+                        player.sendMessage("§r§6Warning: You have specified§r §b" + name + "§r §6multiple times. They will only be removed once.§r");
+                    }
+                } catch (SignLiftException e) {
                     player.sendMessage("§r§c" + e.getMessage() + "§r");
                     return true;
                 }
-            }
-            else {
-                
-                final UUID member = nameToUniqueId.get(playerName.toLowerCase());
-                if(member == null) {
-                    changeData.addUnknown(playerName);
+            } else {
+                final UUID uniqueId = this.signLiftPlugin.getUniqueId(arg);
+                if (uniqueId == null) {
+                    changeData.addUnknown(arg);
                     continue;
                 }
                 
                 try {
-                    changeData.addMember(member);
-                }
-                catch(SignLiftException e) {
+                    if (!changeData.addMember(uniqueId)) {
+                        player.sendMessage("§r§6Warning: You have specified§r §b" + arg + "§r §6multiple times. They will only be added as a member once.§r");
+                    }
+                } catch (SignLiftException e) {
                     player.sendMessage("§r§c" + e.getMessage() + "§r");
                     return true;
                 }
             }
         }
         
-        pendingModifications.put(player.getUniqueId(), changeData);
+        this.signLiftPlugin.addPendingModification(player.getUniqueId(), changeData);
         player.sendMessage(ConfigMessage.getCommandModify());
         return true;
     }
     
-    private boolean changeOwnerCommand(final Player player, final String playerName) {
-        
-        final ChangeData changeData;
-        final UUID newOwner = nameToUniqueId.get(playerName.toLowerCase());
-        
-        if(newOwner == null) {
-            changeData = new ChangeData(false, null);
-            changeData.addUnknown(playerName);
-        }
-        else {
-            changeData = new ChangeData(true, newOwner);
-        }
-        
-        pendingModifications.put(player.getUniqueId(), changeData);
+    /**
+     * Performs the main functionality of the changeowner command.
+     *
+     * @param player The {@link Player} executing the command.
+     * @param ownerName The name of the {@link Player} that is to be the new
+     *                  owner.
+     * @return {@code true} if command execution was successful, {@code false}
+     *         otherwise.
+     */
+    private boolean changeOwnerCommand(@NotNull final Player player, @NotNull final String ownerName) {
+        this.signLiftPlugin.addPendingModification(player.getUniqueId(), new ChangeData(this.signLiftPlugin.getUniqueId(ownerName)));
         player.sendMessage(ConfigMessage.getCommandModify());
         return true;
+    }
+    
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @NotNull
+    public List<String> onTabComplete(@NotNull final CommandSender sender, @NotNull final Command command, @NotNull final String label, @NotNull final String[] args) {
+    
+        final String commandName = command.getName();
+        if (!this.signLiftPlugin.getDescription().getCommands().containsKey(commandName)) {
+            this.logger.log(Level.WARNING, "The command " + commandName + " was triggered for tab completion in the SignLift plugin.");
+            this.logger.log(Level.WARNING, "This command is not registered to SignLift.");
+            return Collections.emptyList();
+        }
+    
+        if (!(sender instanceof Player)) {
+            sender.sendMessage(ConfigMessage.getCommandDeny());
+            return Collections.emptyList();
+        }
+        
+        final Player player = (Player) sender;
+        final Server server = this.signLiftPlugin.getServer();
+        final List<String> argsList = Arrays.asList(args);
+        final List<String> completions = new ArrayList<String>();
+        
+        if (commandName.equalsIgnoreCase("signlift")) {
+            boolean foundError = false;
+    
+            final PluginCommand sreloadCommand = server.getPluginCommand("sreload");
+            if (sreloadCommand == null) {
+                this.logger.log(Level.WARNING, "/sreload command not registered. Possible compilation/build issue with the plugin.");
+                this.logger.log(Level.WARNING, "Cannot execute commandline: " + commandName + " : " + Arrays.toString(args));
+                foundError = true;
+            } else if (sreloadCommand.testPermissionSilent(player)) {
+                completions.add("reload");
+            }
+    
+            final PluginCommand shelpCommand = server.getPluginCommand("shelp");
+            if (shelpCommand == null) {
+                this.logger.log(Level.WARNING, "/shelp command not registered. Possible compilation/build issue with the plugin.");
+                this.logger.log(Level.WARNING, "Cannot execute commandline: " + commandName + " : " + Arrays.toString(args));
+                foundError = true;
+            } else if (shelpCommand.testPermissionSilent(player)) {
+                completions.add("help");
+            }
+    
+            final PluginCommand sinfoCommand = server.getPluginCommand("sinfo");
+            if (sinfoCommand == null) {
+                this.logger.log(Level.WARNING, "/sinfo command not registered. Possible compilation/build issue with the plugin.");
+                this.logger.log(Level.WARNING, "Cannot execute commandline: " + commandName + " : " + Arrays.toString(args));
+                foundError = true;
+            } else if (sinfoCommand.testPermissionSilent(player)) {
+                completions.add("info");
+            }
+    
+            final PluginCommand smodifyCommand = server.getPluginCommand("smodify");
+            if (smodifyCommand == null) {
+                this.logger.log(Level.WARNING, "/smodify command not registered. Possible compilation/build issue with the plugin.");
+                this.logger.log(Level.WARNING, "Cannot execute commandline: " + commandName + " : " + Arrays.toString(args));
+                foundError = true;
+            } else if (smodifyCommand.testPermissionSilent(player)) {
+                completions.add("modify");
+            }
+    
+            final PluginCommand schangeownerCommand = server.getPluginCommand("schangeowner");
+            if (schangeownerCommand == null) {
+                this.logger.log(Level.WARNING, "/schangeowner command not registered. Possible compilation/build issue with the plugin.");
+                this.logger.log(Level.WARNING, "Cannot execute commandline: " + commandName + " : " + Arrays.toString(args));
+                foundError = true;
+            } else if (schangeownerCommand.testPermissionSilent(player)) {
+                completions.add("changeowner");
+            }
+            
+            if (argsList.isEmpty()) {
+                if (foundError) {
+                    player.sendMessage(SignLiftTabExecutor.INTERNAL_ERROR);
+                }
+                return completions;
+            }
+            
+            final String subCommand = argsList.remove(0);
+            if (argsList.isEmpty()) {
+                completions.removeIf(completion -> !completion.toLowerCase().startsWith(subCommand.toLowerCase()));
+                return completions;
+            }
+            
+            completions.clear();
+            if (subCommand.equalsIgnoreCase("reload")) {
+                return this.getReloadSuggestions(player, argsList);
+            } else if (subCommand.equalsIgnoreCase("help")) {
+                return Collections.emptyList();
+            } else if (subCommand.equalsIgnoreCase("info")) {
+                return Collections.emptyList();
+            } else if (subCommand.equalsIgnoreCase("modify")) {
+                return this.getPlayerSuggestions(player, argsList, false);
+            } else if (subCommand.equalsIgnoreCase("changeowner")) {
+                return this.getPlayerSuggestions(player, argsList, true);
+            } else {
+                return Collections.emptyList();
+            }
+        } else if (commandName.equalsIgnoreCase("sreload")) {
+    
+            final PluginCommand sreloadCommand = server.getPluginCommand("sreload");
+            if (sreloadCommand == null) {
+                this.logger.log(Level.WARNING, "/sreload command not registered. Possible compilation/build issue with the plugin.");
+                this.logger.log(Level.WARNING, "Cannot execute commandline: " + commandName + " : " + Arrays.toString(args));
+                player.sendMessage(SignLiftTabExecutor.INTERNAL_ERROR);
+                return Collections.emptyList();
+            }
+            return this.getReloadSuggestions(player, argsList);
+        } else if (commandName.equalsIgnoreCase("shelp")) {
+            
+            final PluginCommand shelpCommand = server.getPluginCommand("shelp");
+            if (shelpCommand == null) {
+                this.logger.log(Level.WARNING, "/shelp command not registered. Possible compilation/build issue with the plugin.");
+                this.logger.log(Level.WARNING, "Cannot execute commandline: " + commandName + " : " + Arrays.toString(args));
+                player.sendMessage(SignLiftTabExecutor.INTERNAL_ERROR);
+            }
+            return Collections.emptyList();
+        } else if (commandName.equalsIgnoreCase("sinfo")) {
+    
+            final PluginCommand sinfoCommand = server.getPluginCommand("shelp");
+            if (sinfoCommand == null) {
+                this.logger.log(Level.WARNING, "/sinfo command not registered. Possible compilation/build issue with the plugin.");
+                this.logger.log(Level.WARNING, "Cannot execute commandline: " + commandName + " : " + Arrays.toString(args));
+                player.sendMessage(SignLiftTabExecutor.INTERNAL_ERROR);
+            }
+            return Collections.emptyList();
+        } else if (commandName.equalsIgnoreCase("smodify")) {
+    
+            final PluginCommand smodifyCommand = server.getPluginCommand("smodify");
+            if (smodifyCommand == null) {
+                this.logger.log(Level.WARNING, "/smodify command not registered. Possible compilation/build issue with the plugin.");
+                this.logger.log(Level.WARNING, "Cannot execute commandline: " + commandName + " : " + Arrays.toString(args));
+                player.sendMessage(SignLiftTabExecutor.INTERNAL_ERROR);
+                return Collections.emptyList();
+            }
+            return this.getPlayerSuggestions(player, argsList, false);
+        } else if (commandName.equalsIgnoreCase("schangeowner")) {
+    
+            final PluginCommand schangeownerCommand = server.getPluginCommand("schangeowner");
+            if (schangeownerCommand == null) {
+                this.logger.log(Level.WARNING, "/schangeowner command not registered. Possible compilation/build issue with the plugin.");
+                this.logger.log(Level.WARNING, "Cannot execute commandline: " + commandName + " : " + Arrays.toString(args));
+                player.sendMessage(SignLiftTabExecutor.INTERNAL_ERROR);
+                return Collections.emptyList();
+            }
+            return this.getPlayerSuggestions(player, argsList, true);
+        } else {
+            return Collections.emptyList();
+        }
+    }
+    
+    /**
+     * Gets the tab-completion suggestions for the reload command.
+     *
+     * @param player The {@link Player} triggering the tab-completion.
+     * @param argsList The {@link List} of arguments given, if any.
+     * @return The {@link List} of tab-completions that will be given to the
+     *         {@link Player}.
+     */
+    @NotNull
+    private List<String> getReloadSuggestions(@NotNull final Player player, @NotNull final List<String> argsList) {
+        
+        final List<String> completions = new ArrayList<String>();
+        
+        if (player.hasPermission("signlift.command.signlift.reload.config")) {
+            completions.add("config");
+        }
+        if (player.hasPermission("signlift.command.signlift.reload.messages")) {
+            completions.add("messages");
+        }
+        
+        if (argsList.isEmpty()) {
+            return completions;
+        }
+        
+        final String reloadType = argsList.remove(0);
+        if (argsList.isEmpty()) {
+            completions.removeIf(completion -> !completion.toLowerCase().startsWith(reloadType.toLowerCase()));
+            return completions;
+        }
+        
+        return Collections.emptyList();
+    }
+    
+    /**
+     * Gets the suggestions for players for the modify and changeowner commands.
+     *
+     * @param player The {@link Player} triggering the tab-completion.
+     * @param argsList The command-line arguments, minus the (sub-)command(s).
+     * @param onlyUseFirst If {@code true}, then only the 1st argument will be
+     *                     considered, and all others will warrant no returned
+     *                     tab-completions. If {@code false}, all args will
+     *                     warrant possible tab-completions.
+     * @return The {@link List} of possible {@link Player} names to use as
+     *         tab-completions.
+     */
+    @NotNull
+    private List<String> getPlayerSuggestions(@NotNull final Player player, @NotNull final List<String> argsList, final boolean onlyUseFirst) {
+        
+        final List<String> completions = new ArrayList<String>();
+        for (final Player onlinePlayer : this.signLiftPlugin.getServer().getOnlinePlayers()) {
+            completions.add(onlinePlayer.getName());
+        }
+        
+        for (final String name : this.signLiftPlugin.getAllNames()) {
+            if (!completions.contains(name)) {
+                completions.add(name);
+            }
+        }
+        
+        if (argsList.isEmpty()) {
+            return completions;
+        }
+        
+        final String lastPlayer = argsList.remove(0);
+        final String prefix;
+        if (lastPlayer.startsWith("@")) {
+            prefix = "@";
+        } else if (lastPlayer.startsWith("-")) {
+            prefix = "-";
+        } else {
+            prefix = "";
+        }
+        
+        for (int index = 0; index < completions.size(); index++) {
+            completions.set(index, prefix + completions.get(index));
+        }
+    
+        completions.removeIf(s -> !s.toLowerCase().startsWith(lastPlayer.toLowerCase()));
+        return completions;
     }
 }

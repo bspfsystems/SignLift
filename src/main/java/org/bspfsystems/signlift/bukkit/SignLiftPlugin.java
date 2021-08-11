@@ -25,9 +25,7 @@ package org.bspfsystems.signlift.bukkit;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -40,19 +38,16 @@ import java.util.logging.Logger;
 import org.bspfsystems.signlift.bukkit.command.SignLiftTabExecutor;
 import org.bukkit.Location;
 import org.bukkit.Server;
-import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.command.TabExecutor;
 import org.bukkit.configuration.InvalidConfigurationException;
-import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bspfsystems.playerdata.bukkit.PlayerDataEntry;
 import org.bspfsystems.signlift.bukkit.config.ConfigData;
 import org.bspfsystems.signlift.bukkit.config.ConfigMessage;
-import org.bspfsystems.signlift.bukkit.exception.SignLiftException;
 import org.bspfsystems.signlift.bukkit.liftsign.LiftSign;
 import org.bspfsystems.signlift.bukkit.liftsign.PrivateLiftSign;
 import org.bspfsystems.signlift.bukkit.listener.SignLiftEventHandler;
@@ -65,7 +60,6 @@ public final class SignLiftPlugin extends JavaPlugin {
     
     private Logger logger;
     
-    private File dataFolder;
     private File playerDataFolder;
     private File privateLiftSignFolder;
     
@@ -118,27 +112,27 @@ public final class SignLiftPlugin extends JavaPlugin {
         
         // Data folder checks
         
-        this.dataFolder = this.getDataFolder();
+        final File dataFolder = this.getDataFolder();
         try {
-            if (!this.dataFolder.exists()) {
-                if (!this.dataFolder.mkdirs()) {
-                    this.logger.log(Level.WARNING, "SignLift data directory not created at " + this.dataFolder.getPath());
+            if (!dataFolder.exists()) {
+                if (!dataFolder.mkdirs()) {
+                    this.logger.log(Level.WARNING, "SignLift data directory not created at " + dataFolder.getPath());
                     this.logger.log(Level.WARNING, "SignLift functionality will be disabled.");
                     return;
                 }
-            } else if (!this.dataFolder.isDirectory()) {
-                this.logger.log(Level.WARNING, "SignLift data directory is not a directory: " + this.dataFolder.getPath());
+            } else if (!dataFolder.isDirectory()) {
+                this.logger.log(Level.WARNING, "SignLift data directory is not a directory: " + dataFolder.getPath());
                 this.logger.log(Level.WARNING, "SignLift functionality will be disabled.");
                 return;
             }
         } catch (SecurityException e) {
-            this.logger.log(Level.WARNING, "Unable to validate if the SignLift data directory has been properly created at " + this.dataFolder.getPath());
+            this.logger.log(Level.WARNING, "Unable to validate if the SignLift data directory has been properly created at " + dataFolder.getPath());
             this.logger.log(Level.WARNING, "SignLift functionality will be disabled.");
             this.logger.log(Level.WARNING, e.getClass().getSimpleName() + " thrown.", e);
             return;
         }
         
-        this.playerDataFolder = new File(this.dataFolder, "PlayerData");
+        this.playerDataFolder = new File(dataFolder, "PlayerData");
         try {
             if (!this.playerDataFolder.exists()) {
                 if (!this.playerDataFolder.mkdirs()) {
@@ -158,7 +152,7 @@ public final class SignLiftPlugin extends JavaPlugin {
             return;
         }
     
-        this.privateLiftSignFolder = new File(this.dataFolder, "PrivateLiftSigns");
+        this.privateLiftSignFolder = new File(dataFolder, "PrivateLiftSigns");
         try {
             if (!this.privateLiftSignFolder.exists()) {
                 if (!this.privateLiftSignFolder.mkdirs()) {
@@ -313,152 +307,6 @@ public final class SignLiftPlugin extends JavaPlugin {
             this.logger.log(Level.INFO, "Name : " + currentName);
             this.logger.log(Level.INFO, "UUID : " + uniqueId.toString());
             this.logger.log(Level.INFO, "================================================");
-        }
-    }
-    
-    public List<String> onTabComplete(final String buffer, final List<String> completions, final CommandSender sender) {
-        
-        if(!(sender instanceof Player)) {
-            if(completions.contains("/signlift")) {
-                completions.remove("/signlift");
-            }
-            if(completions.contains("/shelp")) {
-                completions.remove("/shelp");
-            }
-            if(completions.contains("/sinfo")) {
-                completions.remove("/sinfo");
-            }
-            if(completions.contains("/smodify")) {
-                completions.remove("/smodify");
-            }
-            if(completions.contains("/schangeowner")) {
-                completions.remove("/schangeowner");
-            }
-            return completions;
-        }
-        
-        final Player player = (Player) sender;
-        final Server server = getServer();
-        final ArrayList<String> splitCommand = new ArrayList<String>();
-        final String[] splitBuffer = buffer.split(" ");
-        final boolean endsWithSpace = buffer.endsWith(" ");
-        
-        for(final String splitBufferItem : splitBuffer) {
-            if(splitBufferItem.startsWith("/")) {
-                splitCommand.add(splitBufferItem.substring(1));
-            }
-            else if(splitBufferItem.isEmpty()) {
-                continue;
-            }
-            else {
-                splitCommand.add(splitBufferItem);
-            }
-        }
-        
-        if(splitCommand.isEmpty()) {
-            return completions;
-        }
-        
-        final boolean permissionSignlift = player.hasPermission("signlift.command.signlift");
-        final boolean permissionSignliftHelp = player.hasPermission("signlift.command.signlift.help");
-        final boolean permissionSignliftInfo = player.hasPermission("signlift.command.signlift.info");
-        final boolean permissionSignliftModify = player.hasPermission("signlift.command.signlift.modify");
-        final boolean permissionSignliftChangeowner = player.hasPermission("signlift.command.signlift.changeowner");
-        
-        final String commandName = splitCommand.remove(0);
-        if(splitCommand.isEmpty() && !endsWithSpace) {
-            if(completions.contains("/signlift") && !permissionSignlift) {
-                completions.remove("/signlift");
-            }
-            if(completions.contains("/shelp") && !permissionSignlift && !permissionSignliftHelp) {
-                completions.remove("/shelp");
-            }
-            if(completions.contains("/sinfo") && !permissionSignlift && !permissionSignliftInfo) {
-                completions.remove("/sinfo");
-            }
-            if(completions.contains("/smodify") && !permissionSignlift && !permissionSignliftModify) {
-                completions.remove("/smodify");
-            }
-            if(completions.contains("/schangeowner") && !permissionSignlift && !permissionSignliftChangeowner) {
-                completions.remove("/schangeowner");
-            }
-            return completions;
-        }
-        
-        if(commandName.equals("signlift")) {
-            completions.clear();
-            
-            if(sender.hasPermission(server.getPluginCommand("shelp").getPermission())) {
-                completions.add("help");
-            }
-            if(sender.hasPermission(server.getPluginCommand("sinfo").getPermission())) {
-                completions.add("info");
-            }
-            if(sender.hasPermission(server.getPluginCommand("smodify").getPermission())) {
-                completions.add("modify");
-            }
-            if(sender.hasPermission(server.getPluginCommand("schangeowner").getPermission())) {
-                completions.add("changeowner");
-            }
-            
-            if(splitCommand.isEmpty()) {
-                return completions;
-            }
-            
-            final String subCommandName = splitCommand.remove(0);
-            if(!endsWithSpace) {
-                
-                final Iterator<String> completionsIterator = completions.iterator();
-                while(completionsIterator.hasNext()) {
-                    if(!completionsIterator.next().toLowerCase().startsWith(subCommandName.toLowerCase())) {
-                        completionsIterator.remove();
-                    }
-                }
-                return completions;
-            }
-            
-            completions.clear();
-            
-            if(subCommandName.equals("help")) {
-                return completions;
-            }
-            else if(subCommandName.equals("info")) {
-                return completions;
-            }
-            else if(subCommandName.equals("modify")) {
-                return getPlayerSuggestions(completions, splitCommand, endsWithSpace);
-            }
-            else if(subCommandName.equals("changeowner")) {
-                if(!splitCommand.isEmpty()) {
-                    return completions;
-                }
-                return getPlayerSuggestions(completions, splitCommand, endsWithSpace);
-            }
-            else {
-                return completions;
-            }
-        }
-        else if(commandName.equals("shelp")) {
-            completions.clear();
-            return completions;
-        }
-        else if(commandName.equals("sinfo")) {
-            completions.clear();
-            return completions;
-        }
-        else if(commandName.equals("smodify")) {
-            completions.clear();
-            return getPlayerSuggestions(completions, splitCommand, endsWithSpace);
-        }
-        else if(commandName.equals("schangeowner")) {
-            completions.clear();
-            if(!splitCommand.isEmpty()) {
-                return completions;
-            }
-            return getPlayerSuggestions(completions, splitCommand, endsWithSpace);
-        }
-        else {
-            return completions;
         }
     }
     
