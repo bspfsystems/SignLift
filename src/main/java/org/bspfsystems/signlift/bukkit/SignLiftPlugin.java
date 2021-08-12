@@ -31,6 +31,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
@@ -38,6 +39,8 @@ import java.util.logging.Logger;
 import org.bspfsystems.signlift.bukkit.command.SignLiftTabExecutor;
 import org.bukkit.Location;
 import org.bukkit.Server;
+import org.bukkit.block.Block;
+import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.command.TabExecutor;
@@ -52,6 +55,7 @@ import org.bspfsystems.signlift.bukkit.liftsign.LiftSign;
 import org.bspfsystems.signlift.bukkit.liftsign.PrivateLiftSign;
 import org.bspfsystems.signlift.bukkit.listener.SignLiftEventHandler;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Represents the main entrypoint for the {@link SignLiftPlugin} functionality.
@@ -240,13 +244,23 @@ public final class SignLiftPlugin extends JavaPlugin {
     // EVENT LISTENER METHODS //
     ////////////////////////////
     
-    public Collection<String> onPlayerCommandSend(final Player player) {
+    /**
+     * Gets all {@link Command} suggestions to be removed from tab-completion
+     * suggestions. Suggestions are removed on a permission basis, as well as
+     * the suggestions in the form of {@code <plugin name>:<command>}.
+     *
+     * @param player The {@link Player} to check the permission of.
+     * @return A {@link Collection} of {@link Command} names to remove.
+     */
+    @NotNull
+    public Collection<String> onPlayerCommandSend(@NotNull final Player player) {
         
-        final HashSet<String> removals = new HashSet<String>();
-        for(final String commandName : getDescription().getCommands().keySet()) {
+        final Collection<String> removals = new HashSet<String>();
+        for (final String commandName : this.getDescription().getCommands().keySet()) {
             
-            removals.add("signlift:" + commandName);
-            if(!player.hasPermission(getServer().getPluginCommand(commandName).getPermission())) {
+            removals.add(this.getDescription().getName() + ":" + commandName);
+            final PluginCommand command = this.getServer().getPluginCommand(commandName);
+            if (command != null && !command.testPermissionSilent(player)) {
                 removals.add(commandName);
             }
         }
@@ -254,126 +268,178 @@ public final class SignLiftPlugin extends JavaPlugin {
         return removals;
     }
     
-    public void onPlayerJoin(final Player player) {
+    /**
+     * Runs when a {@link Player} joins the {@link Server}, is used to get their
+     * name and {@link UUID} for a {@link PlayerDataEntry}.
+     *
+     * @param player The {@link Player} that joined the {@link Server}.
+     */
+    public void onPlayerJoin(@NotNull final Player player) {
         
         final UUID uniqueId = player.getUniqueId();
         final String currentName = player.getName();
         
-        if(!uniqueIdToName.containsKey(uniqueId)) {
+        if (!this.uniqueIdToName.containsKey(uniqueId)) {
+            this.logger.log(Level.CONFIG, "================================================");
+            this.logger.log(Level.CONFIG, "Player Login : NEW PLAYER");
+            this.logger.log(Level.CONFIG, "------------------------------------------------");
+            this.logger.log(Level.CONFIG, "Name : " + currentName);
+            this.logger.log(Level.CONFIG, "UUID : " + uniqueId.toString());
+            this.logger.log(Level.CONFIG, "================================================");
             
-            this.logger.log(Level.INFO, "================================================");
-            this.logger.log(Level.INFO, "Player Login : NEW PLAYER");
-            this.logger.log(Level.INFO, "------------------------------------------------");
-            this.logger.log(Level.INFO, "Name : " + currentName);
-            this.logger.log(Level.INFO, "UUID : " + uniqueId.toString());
-            this.logger.log(Level.INFO, "================================================");
+            this.nameToUniqueId.put(currentName.toLowerCase(), uniqueId);
+            this.uniqueIdToName.put(uniqueId, currentName);
             
-            nameToUniqueId.put(currentName.toLowerCase(), uniqueId);
-            uniqueIdToName.put(uniqueId, currentName);
-            
-            if(!savePlayerData(new PlayerDataEntry(player))) {
+            if (!this.savePlayerData(new PlayerDataEntry(player))) {
                 this.logger.log(Level.WARNING, "Unable to save PlayerData.");
                 this.logger.log(Level.WARNING, "Name : " + currentName);
                 this.logger.log(Level.WARNING, "UUID : " + uniqueId.toString());
             }
-        }
-        else if(!nameToUniqueId.containsKey(currentName.toLowerCase())) {
+        } else if (!this.nameToUniqueId.containsKey(currentName.toLowerCase())) {
+            this.logger.log(Level.CONFIG, "================================================");
+            this.logger.log(Level.CONFIG, "Player Login: UPDATE NAME");
+            this.logger.log(Level.CONFIG, "------------------------------------------------");
+            this.logger.log(Level.CONFIG, "Old Name : " + uniqueIdToName.get(uniqueId));
+            this.logger.log(Level.CONFIG, "New Name : " + currentName);
+            this.logger.log(Level.CONFIG, "UUID     : " + uniqueId.toString());
+            this.logger.log(Level.CONFIG, "================================================");
             
-            this.logger.log(Level.INFO, "================================================");
-            this.logger.log(Level.INFO, "Player Login: UPDATE NAME");
-            this.logger.log(Level.INFO, "------------------------------------------------");
-            this.logger.log(Level.INFO, "Old Name : " + uniqueIdToName.get(uniqueId));
-            this.logger.log(Level.INFO, "New Name : " + currentName);
-            this.logger.log(Level.INFO, "UUID     : " + uniqueId.toString());
-            this.logger.log(Level.INFO, "================================================");
+            this.nameToUniqueId.remove(this.uniqueIdToName.get(uniqueId));
+            this.uniqueIdToName.remove(uniqueId);
             
-            nameToUniqueId.remove(uniqueIdToName.get(uniqueId));
-            uniqueIdToName.remove(uniqueId);
+            this.nameToUniqueId.put(currentName.toLowerCase(), uniqueId);
+            this.uniqueIdToName.put(uniqueId, currentName);
             
-            nameToUniqueId.put(currentName.toLowerCase(), uniqueId);
-            uniqueIdToName.put(uniqueId, currentName);
-            
-            if(!savePlayerData(new PlayerDataEntry(player))) {
+            if (!this.savePlayerData(new PlayerDataEntry(player))) {
                 this.logger.log(Level.WARNING, "Unable to save PlayerData.");
                 this.logger.log(Level.WARNING, "Name : " + currentName);
                 this.logger.log(Level.WARNING, "UUID : " + uniqueId.toString());
             }
-        }
-        else {
-            
-            this.logger.log(Level.INFO, "================================================");
-            this.logger.log(Level.INFO, "Player Login: KNOWN PLAYER");
-            this.logger.log(Level.INFO, "------------------------------------------------");
-            this.logger.log(Level.INFO, "Name : " + currentName);
-            this.logger.log(Level.INFO, "UUID : " + uniqueId.toString());
-            this.logger.log(Level.INFO, "================================================");
+        } else {
+            this.logger.log(Level.CONFIG, "================================================");
+            this.logger.log(Level.CONFIG, "Player Login: KNOWN PLAYER");
+            this.logger.log(Level.CONFIG, "------------------------------------------------");
+            this.logger.log(Level.CONFIG, "Name : " + currentName);
+            this.logger.log(Level.CONFIG, "UUID : " + uniqueId.toString());
+            this.logger.log(Level.CONFIG, "================================================");
         }
     }
     
-    public boolean isCommand(final String commandName) {
-        return getDescription().getCommands().keySet().contains(commandName);
+    //////////////////////////////////////
+    // LIFTSIGN HANDLING PUBLIC METHODS //
+    //////////////////////////////////////
+    
+    /**
+     * Gets the {@link PrivateLiftSign} at the given {@link Location}, if one
+     * exists. Otherwise, returns {@code null}.
+     *
+     * @param location The {@link Location} to check for a
+     *                 {@link PrivateLiftSign}.
+     * @return The {@link PrivateLiftSign}, if one exists. {@code null}
+     *         otherwise.
+     */
+    @Nullable
+    public PrivateLiftSign getPrivateLiftSign(@NotNull final Location location) {
+        return this.loadLiftSign(location);
     }
     
-    public PrivateLiftSign getPrivateLiftSign(final Location location) {
-        return loadLiftSign(location);
-    }
-    
-    public void addPrivateLiftSign(final PrivateLiftSign privateLiftSign, final Player player) {
-        if(!saveLiftSign(privateLiftSign)) {
+    /**
+     * Adds a new {@link PrivateLiftSign} to the known {@link PrivateLiftSign}s.
+     * This is usually used when a {@link Player} creates a new
+     * {@link PrivateLiftSign}.
+     *
+     * @param privateLiftSign The new {@link PrivateLiftSign}.
+     * @param player The {@link Player} that created the
+     *               {@link PrivateLiftSign}.
+     */
+    public void addPrivateLiftSign(@NotNull final PrivateLiftSign privateLiftSign, @NotNull final Player player) {
+        if (!this.saveLiftSign(privateLiftSign)) {
             player.sendMessage(ConfigMessage.getLiftsignFileErrorSave());
         }
     }
     
-    public boolean isPendingInformation(final Player player) {
-        return pendingInformation.contains(player.getUniqueId());
+    /**
+     * Checks to see if the given {@link Player} has entered the
+     * {@code /signlift info} {@link Command}, but has not yet punched a
+     * {@link Block}.
+     *
+     * @param player The {@link Player} to check for.
+     * @return {@code true} if the {@link Player} has entered the
+     *         {@code /signlift info} {@link Command}, but has not yet punched a
+     *         {@link Block}, {@code false} otherwise.
+     */
+    public boolean isPendingInformation(@NotNull final Player player) {
+        return this.pendingInformation.contains(player.getUniqueId());
     }
     
-    public void getInformation(final Location location, final Player player) {
+    /**
+     * Displays information about the given {@link Block} (ideally a
+     * {@link LiftSign}) at the given {@link Location} to the given
+     * {@link Player}.
+     * <p>
+     * If the {@link Block} at the given {@link Location} is not a
+     * {@link LiftSign}, an error message will be displayed. Also, if the
+     * {@link Player} has not entered the {@link Command} to allow them to see
+     * the information, no message will be displayed.
+     *
+     * @param location The {@link Location} to get the information of, if any.
+     * @param player The {@link Player} to display the information to, if any.
+     */
+    public void getInformation(@NotNull final Location location, @NotNull final Player player) {
         
-        if(!pendingInformation.contains(player.getUniqueId())) {
+        if (!this.pendingInformation.remove(player.getUniqueId())) {
+            this.logger.log(Level.WARNING, "Player attempting to get LiftSign information, Player is not pending information.");
+            this.logger.log(Level.WARNING, "Somehow got past the isPendingInformation() check.");
+            this.logger.log(Level.WARNING, "Player name: " + player.getName());
+            this.logger.log(Level.WARNING, "Player UUID: " + player.getUniqueId());
             return;
         }
-        pendingInformation.remove(player.getUniqueId());
         
-        if(LiftSign.isPublicLiftSign(location)) {
+        if (LiftSign.isPublicLiftSign(location)) {
             player.sendMessage(ConfigMessage.getLiftsignInfoPublic());
-        }
-        else if(LiftSign.isPrivateLiftSign(location)) {
+        } else if (LiftSign.isPrivateLiftSign(location)) {
             
-            final PrivateLiftSign privateLiftSign = loadLiftSign(location);
-            if(privateLiftSign == null) {
+            final PrivateLiftSign privateLiftSign = this.loadLiftSign(location);
+            if (privateLiftSign == null) {
+                this.logger.log(Level.WARNING, "Player checking info for PrivateLiftSign, no LiftSign found.");
+                this.logger.log(Level.WARNING, "Previous check showed that the Location had a PrivateLiftSign.");
+                this.logger.log(Level.WARNING, "Player name: " + player.getName());
+                this.logger.log(Level.WARNING, "Player UUID: " + player.getUniqueId());
+                this.logger.log(Level.WARNING, "World: " + (location.getWorld() == null ? "null" : location.getWorld().getName()));
+                this.logger.log(Level.WARNING, "X: " + location.getBlockX());
+                this.logger.log(Level.WARNING, "Y: " + location.getBlockY());
+                this.logger.log(Level.WARNING, "Z: " + location.getBlockZ());
                 player.sendMessage(ConfigMessage.getLiftsignInfoError());
                 return;
             }
             
             final UUID owner = privateLiftSign.getOwner();
-            final HashSet<UUID> admins = privateLiftSign.getAdmins();
-            final HashSet<UUID> members = privateLiftSign.getMembers();
+            final Set<UUID> admins = privateLiftSign.getAdmins();
+            final Set<UUID> members = privateLiftSign.getMembers();
             
             player.sendMessage("§r§8================================§r");
             player.sendMessage(ConfigMessage.getLiftsignInfoPrivate());
             player.sendMessage("§r§8--------------------------------§r");
             player.sendMessage("§r§6Owner§r§f:§r");
-            player.sendMessage("§r§f -§r §b" + uniqueIdToName.get(owner) + "§r §6[" + owner.toString() + "]§r");
+            player.sendMessage("§r §f-§r §b" + this.uniqueIdToName.get(owner) + "§r §6[" + owner.toString() + "]§r");
             
-            if(!admins.isEmpty()) {
+            if (!admins.isEmpty()) {
                 player.sendMessage("§r§8--------------------------------§r");
                 player.sendMessage("§r§6Admin§r§f:§r");
-                for(final UUID admin : admins) {
-                    player.sendMessage("§r§f -§r §b" + uniqueIdToName.get(admin) + "§r §6[" + admin.toString() + "]§r");
+                for (final UUID admin : admins) {
+                    player.sendMessage("§r §f-§r §b" + uniqueIdToName.get(admin) + "§r §6[" + admin.toString() + "]§r");
                 }
             }
-            if(!members.isEmpty()) {
+            if (!members.isEmpty()) {
                 player.sendMessage("§r§8--------------------------------§r");
                 player.sendMessage("§r§6Members§r§f:§r");
-                for(final UUID member : members) {
-                    player.sendMessage("§r§f -§r §b" + uniqueIdToName.get(member) + "§r §6[" + member.toString() + "]§r");
+                for (final UUID member : members) {
+                    player.sendMessage("§r §f-§r §b" + uniqueIdToName.get(member) + "§r §6[" + member.toString() + "]§r");
                 }
             }
             
             player.sendMessage("§r§8================================§r");
-        }
-        else {
+        } else {
             player.sendMessage(ConfigMessage.getLiftsignInfoDeny());
         }
     }
