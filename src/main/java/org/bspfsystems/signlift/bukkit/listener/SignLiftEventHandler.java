@@ -48,7 +48,6 @@ import org.bukkit.event.block.SignChangeEvent;
 import org.bukkit.event.player.PlayerCommandSendEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.server.TabCompleteEvent;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.bspfsystems.signlift.bukkit.SignLiftPlugin;
@@ -149,7 +148,7 @@ public final class SignLiftEventHandler implements Listener {
                 liftSign = new PublicLiftSign(sign);
             } catch (SignLiftException e) {
                 this.logger.log(Level.WARNING, "PublicLiftSign found at Location, cannot \"create\".");
-                this.logger.log(Level.WARNING, "World: " + location.getWorld().getName());
+                this.logger.log(Level.WARNING, "World: " + (location.getWorld() == null ? "null" : location.getWorld().getName()));
                 this.logger.log(Level.WARNING, "X: " + location.getBlockX());
                 this.logger.log(Level.WARNING, "Y: " + location.getBlockY());
                 this.logger.log(Level.WARNING, "Z: " + location.getBlockZ());
@@ -161,7 +160,7 @@ public final class SignLiftEventHandler implements Listener {
             final PrivateLiftSign liftSign = this.signLiftPlugin.getPrivateLiftSign(location);
             if (liftSign == null) {
                 this.logger.log(Level.WARNING, "PrivateLiftSign found at Location, cannot retrieve from plugin.");
-                this.logger.log(Level.WARNING, "World: " + location.getWorld().getName());
+                this.logger.log(Level.WARNING, "World: " + (location.getWorld() == null ? "null" : location.getWorld().getName()));
                 this.logger.log(Level.WARNING, "X: " + location.getBlockX());
                 this.logger.log(Level.WARNING, "Y: " + location.getBlockY());
                 this.logger.log(Level.WARNING, "Z: " + location.getBlockZ());
@@ -366,7 +365,12 @@ public final class SignLiftEventHandler implements Listener {
                         player.sendMessage(ConfigMessage.getLiftsignModifyOther());
                     }
                     
-                    this.signLiftPlugin.removePendingModification(player);
+                    if (!this.signLiftPlugin.removePendingModification(player)) {
+                        this.logger.log(Level.WARNING, "Pending modification was not stored for player.");
+                        this.logger.log(Level.WARNING, "Player Name: " + player.getName());
+                        this.logger.log(Level.WARNING, "Player UUID: " + player.getUniqueId());
+                        this.logger.log(Level.WARNING, "No pending modification data stored (\"null\" stored).");
+                    }
                     event.setCancelled(true);
                     
                 // Player has prepared the information command.
@@ -396,10 +400,10 @@ public final class SignLiftEventHandler implements Listener {
                     
                     final PublicLiftSign liftSign;
                     try {
-                        liftSign = new PublicLiftSign((Sign) state);
+                        liftSign = new PublicLiftSign(state);
                     } catch (SignLiftException e) {
                         this.logger.log(Level.WARNING, "PublicLiftSign found at Location, cannot \"create\".");
-                        this.logger.log(Level.WARNING, "World: " + location.getWorld().getName());
+                        this.logger.log(Level.WARNING, "World: " + (location.getWorld() == null ? "null" : location.getWorld().getName()));
                         this.logger.log(Level.WARNING, "X: " + location.getBlockX());
                         this.logger.log(Level.WARNING, "Y: " + location.getBlockY());
                         this.logger.log(Level.WARNING, "Z: " + location.getBlockZ());
@@ -412,7 +416,7 @@ public final class SignLiftEventHandler implements Listener {
                     final PrivateLiftSign liftSign = this.signLiftPlugin.getPrivateLiftSign(location);
                     if (liftSign == null) {
                         this.logger.log(Level.WARNING, "PrivateLiftSign found at Location, cannot retrieve from plugin.");
-                        this.logger.log(Level.WARNING, "World: " + location.getWorld().getName());
+                        this.logger.log(Level.WARNING, "World: " + (location.getWorld() == null ? "null" : location.getWorld().getName()));
                         this.logger.log(Level.WARNING, "X: " + location.getBlockX());
                         this.logger.log(Level.WARNING, "Y: " + location.getBlockY());
                         this.logger.log(Level.WARNING, "Z: " + location.getBlockZ());
@@ -506,7 +510,7 @@ public final class SignLiftEventHandler implements Listener {
             this.logger.log(Level.INFO, "Player: " + player.getName());
             this.logger.log(Level.INFO, "UUID: " + player.getUniqueId().toString());
             this.logger.log(Level.INFO, "Type: " + (isPrivate ? "PRIVATE" : "PUBLIC"));
-            this.logger.log(Level.INFO, "World: " + location.getWorld().getName());
+            this.logger.log(Level.INFO, "World: " + (location.getWorld() == null ? "null" : location.getWorld().getName()));
             this.logger.log(Level.INFO, "X: " + location.getBlockX());
             this.logger.log(Level.INFO, "Y: " + location.getBlockY());
             this.logger.log(Level.INFO, "Z: " + location.getBlockZ());
@@ -589,9 +593,4 @@ public final class SignLiftEventHandler implements Listener {
         }
     }
     */
-    
-    @EventHandler
-    public void onTabComplete(final TabCompleteEvent event) {
-        event.setCompletions(signLiftPlugin.onTabComplete(event.getBuffer(), event.getCompletions(), event.getSender()));
-    }
 }

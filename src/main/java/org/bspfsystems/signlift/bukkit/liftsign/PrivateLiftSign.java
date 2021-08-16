@@ -36,6 +36,7 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Sign;
 import org.bukkit.configuration.Configuration;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.SignChangeEvent;
@@ -52,7 +53,7 @@ public final class PrivateLiftSign extends LiftSign {
     private static final String KEY_LOCATION = "location";
     private static final String KEY_OWNER_UNIQUE_ID = "owner_unique_id";
     private static final String KEY_ADMIN_UNIQUE_IDS = "admin_unique_ids";
-    private static final String KEY_MEMBER_UNIQUE_IDS = "member_unqiue_ids";
+    private static final String KEY_MEMBER_UNIQUE_IDS = "member_unique_ids";
     
     private UUID owner;
     private final HashSet<UUID> admins;
@@ -70,7 +71,7 @@ public final class PrivateLiftSign extends LiftSign {
      * @see LiftSign#LiftSign(Block)
      */
     public PrivateLiftSign(@NotNull final Block block, @NotNull final Player player) throws SignLiftException {
-        super(block.getState());
+        super(block);
         this.owner = player.getUniqueId();
         this.admins = new HashSet<UUID>();
         this.members = new HashSet<UUID>();
@@ -245,6 +246,37 @@ public final class PrivateLiftSign extends LiftSign {
         }
         
         final Configuration data = new YamlConfiguration();
+        data.set(PrivateLiftSign.KEY_LOCATION, location);
+        data.set(PrivateLiftSign.KEY_OWNER_UNIQUE_ID, ownerId);
+        data.set(PrivateLiftSign.KEY_ADMIN_UNIQUE_IDS, adminIds);
+        data.set(PrivateLiftSign.KEY_MEMBER_UNIQUE_IDS, memberIds);
+        return data;
+    }
+    
+    /**
+     * Serializes this {@link PrivateLiftSign} into a {@link FileConfiguration}
+     * for saving to disk.
+     *
+     * @return The serialized version of this {@link PrivateLiftSign} in a
+     *         format convenient for saving to disk.
+     */
+    @NotNull
+    public FileConfiguration serializeForSave() {
+    
+        final Location location = new Location(this.world, this.x, this.y, this.z);
+        final String ownerId = this.owner.toString();
+    
+        final List<String> adminIds = new ArrayList<String>();
+        for (final UUID admin : this.admins) {
+            adminIds.add(admin.toString());
+        }
+    
+        final List<String> memberIds = new ArrayList<String>();
+        for (final UUID member : this.members) {
+            memberIds.add(member.toString());
+        }
+        
+        final FileConfiguration data = new YamlConfiguration();
         data.set(PrivateLiftSign.KEY_LOCATION, location);
         data.set(PrivateLiftSign.KEY_OWNER_UNIQUE_ID, ownerId);
         data.set(PrivateLiftSign.KEY_ADMIN_UNIQUE_IDS, adminIds);

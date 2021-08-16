@@ -25,6 +25,7 @@ package org.bspfsystems.playerdata.bukkit;
 
 import java.util.UUID;
 import org.bukkit.configuration.Configuration;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -114,6 +115,21 @@ public final class PlayerDataEntry {
     @NotNull
     public Configuration serialize() {
         final Configuration data = new YamlConfiguration();
+        data.set(PlayerDataEntry.KEY_UNIQUE_ID, this.uniqueId.toString());
+        data.set(PlayerDataEntry.KEY_NAME, this.name);
+        return data;
+    }
+    
+    /**
+     * Serializes this {@link PlayerDataEntry} into a {@link FileConfiguration}
+     * for saving to disk.
+     *
+     * @return The serialized version of this {@link PlayerDataEntry} in a
+     *         format convenient for saving to disk.
+     */
+    @NotNull
+    public FileConfiguration serializeForSave() {
+        final FileConfiguration data = new YamlConfiguration();
         data.set(PlayerDataEntry.KEY_UNIQUE_ID, this.uniqueId.toString());
         data.set(PlayerDataEntry.KEY_NAME, this.name);
         return data;

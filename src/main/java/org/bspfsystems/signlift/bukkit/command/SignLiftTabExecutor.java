@@ -324,7 +324,7 @@ public final class SignLiftTabExecutor implements TabExecutor {
      */
     private boolean infoCommand(@NotNull final Player player) {
         player.sendMessage(ConfigMessage.getCommandInfo());
-        this.signLiftPlugin.addPendingInformation(player.getUniqueId());
+        this.signLiftPlugin.addPendingInformation(player);
         return true;
     }
     
@@ -392,7 +392,7 @@ public final class SignLiftTabExecutor implements TabExecutor {
             }
         }
         
-        this.signLiftPlugin.addPendingModification(player.getUniqueId(), changeData);
+        this.signLiftPlugin.addPendingModification(player, changeData);
         player.sendMessage(ConfigMessage.getCommandModify());
         return true;
     }
@@ -407,7 +407,7 @@ public final class SignLiftTabExecutor implements TabExecutor {
      *         otherwise.
      */
     private boolean changeOwnerCommand(@NotNull final Player player, @NotNull final String ownerName) {
-        this.signLiftPlugin.addPendingModification(player.getUniqueId(), new ChangeData(this.signLiftPlugin.getUniqueId(ownerName)));
+        this.signLiftPlugin.addPendingModification(player, new ChangeData(this.signLiftPlugin.getUniqueId(ownerName)));
         player.sendMessage(ConfigMessage.getCommandModify());
         return true;
     }

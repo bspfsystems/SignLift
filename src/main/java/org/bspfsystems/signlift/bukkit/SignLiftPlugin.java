@@ -24,12 +24,11 @@
 package org.bspfsystems.signlift.bukkit;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -37,6 +36,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.bspfsystems.signlift.bukkit.command.SignLiftTabExecutor;
+import org.bspfsystems.signlift.bukkit.exception.SignLiftException;
 import org.bukkit.Location;
 import org.bukkit.Server;
 import org.bukkit.block.Block;
@@ -54,6 +54,7 @@ import org.bspfsystems.signlift.bukkit.config.ConfigMessage;
 import org.bspfsystems.signlift.bukkit.liftsign.LiftSign;
 import org.bspfsystems.signlift.bukkit.liftsign.PrivateLiftSign;
 import org.bspfsystems.signlift.bukkit.listener.SignLiftEventHandler;
+import org.bukkit.scheduler.BukkitScheduler;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -64,11 +65,15 @@ public final class SignLiftPlugin extends JavaPlugin {
     
     private Logger logger;
     
-    private File playerDataFolder;
-    private File privateLiftSignFolder;
+    private Server server;
+    private BukkitScheduler scheduler;
     
+    private File playerDataFolder;
     private ConcurrentHashMap<String, UUID> nameToUniqueId;
     private ConcurrentHashMap<UUID, String> uniqueIdToName;
+    
+    private File privateLiftSignFolder;
+    private ConcurrentHashMap<Location, PrivateLiftSign> privateLiftSigns;
     
     private HashSet<UUID> pendingInformation;
     private ConcurrentHashMap<UUID, ChangeData> pendingModifications;
@@ -104,6 +109,11 @@ public final class SignLiftPlugin extends JavaPlugin {
         this.logger.log(Level.INFO, "//                                                                       //");
         this.logger.log(Level.INFO, "///////////////////////////////////////////////////////////////////////////");
         
+        // Server setup
+        
+        this.server = this.getServer();
+        this.scheduler = this.server.getScheduler();
+        
         // Command handling setup
         
         final TabExecutor signLiftTabExecutor = new SignLiftTabExecutor(this);
@@ -113,8 +123,8 @@ public final class SignLiftPlugin extends JavaPlugin {
         this.registerCommand("sinfo", signLiftTabExecutor);
         this.registerCommand("smodify", signLiftTabExecutor);
         this.registerCommand("schangeowner", signLiftTabExecutor);
-        
-        // Data folder checks
+    
+        // PlayerData loading
         
         final File dataFolder = this.getDataFolder();
         try {
@@ -155,28 +165,7 @@ public final class SignLiftPlugin extends JavaPlugin {
             this.logger.log(Level.WARNING, e.getClass().getSimpleName() + " thrown.", e);
             return;
         }
-    
-        this.privateLiftSignFolder = new File(dataFolder, "PrivateLiftSigns");
-        try {
-            if (!this.privateLiftSignFolder.exists()) {
-                if (!this.privateLiftSignFolder.mkdirs()) {
-                    this.logger.log(Level.WARNING, "SignLift PrivateLiftSign directory not created at " + this.privateLiftSignFolder.getPath());
-                    this.logger.log(Level.WARNING, "SignLift functionality will be disabled.");
-                    return;
-                }
-            } else if (!this.privateLiftSignFolder.isDirectory()) {
-                this.logger.log(Level.WARNING, "SignLift PrivateLiftSign directory is not a directory: " + this.privateLiftSignFolder.getPath());
-                this.logger.log(Level.WARNING, "SignLift functionality will be disabled.");
-                return;
-            }
-        } catch (SecurityException e) {
-            this.logger.log(Level.WARNING, "Unable to validate if the SignLift PrivateLiftSign directory has been properly created at " + this.privateLiftSignFolder.getPath());
-            this.logger.log(Level.WARNING, "SignLift functionality will be disabled.");
-            this.logger.log(Level.WARNING, e.getClass().getSimpleName() + " thrown.", e);
-            return;
-        }
         
-        // PlayerData loading
         
         final File[] playerDataConfigFiles = this.playerDataFolder.listFiles();
         if (playerDataConfigFiles == null) {
@@ -205,15 +194,68 @@ public final class SignLiftPlugin extends JavaPlugin {
             this.uniqueIdToName.put(playerDataEntry.getUniqueId(), playerDataEntry.getName());
         }
         
+        // PrivateLiftSign loading
+    
+        this.privateLiftSignFolder = new File(dataFolder, "PrivateLiftSigns");
+        try {
+            if (!this.privateLiftSignFolder.exists()) {
+                if (!this.privateLiftSignFolder.mkdirs()) {
+                    this.logger.log(Level.WARNING, "SignLift PrivateLiftSign directory not created at " + this.privateLiftSignFolder.getPath());
+                    this.logger.log(Level.WARNING, "SignLift functionality will be disabled.");
+                    return;
+                }
+            } else if (!this.privateLiftSignFolder.isDirectory()) {
+                this.logger.log(Level.WARNING, "SignLift PrivateLiftSign directory is not a directory: " + this.privateLiftSignFolder.getPath());
+                this.logger.log(Level.WARNING, "SignLift functionality will be disabled.");
+                return;
+            }
+        } catch (SecurityException e) {
+            this.logger.log(Level.WARNING, "Unable to validate if the SignLift PrivateLiftSign directory has been properly created at " + this.privateLiftSignFolder.getPath());
+            this.logger.log(Level.WARNING, "SignLift functionality will be disabled.");
+            this.logger.log(Level.WARNING, e.getClass().getSimpleName() + " thrown.", e);
+            return;
+        }
+        
+        final File[] privateLiftSignConfigFiles = this.privateLiftSignFolder.listFiles();
+        if (privateLiftSignConfigFiles == null) {
+            this.logger.log(Level.WARNING, "SignLift PrivateLiftSign directory is not a directory, failed previous check.");
+            this.logger.log(Level.WARNING, "SignLift functionality will be disabled.");
+            return;
+        }
+        
+        this.privateLiftSigns = new ConcurrentHashMap<Location, PrivateLiftSign>();
+        
+        for (final File privateLiftSignConfigFile : privateLiftSignConfigFiles) {
+            
+            final YamlConfiguration privateLiftSignConfig = new YamlConfiguration();
+            try {
+                privateLiftSignConfig.load(privateLiftSignConfigFile);
+            } catch (IOException | IllegalArgumentException | InvalidConfigurationException e) {
+                this.logger.log(Level.WARNING, "Unable to load PrivateLiftSign configuration file at " + privateLiftSignConfigFile.getPath());
+                this.logger.log(Level.WARNING, "Skipping PrivateLiftSign.");
+                this.logger.log(Level.WARNING, e.getClass().getSimpleName() + " thrown.", e);
+                continue;
+            }
+            
+            try {
+                final PrivateLiftSign privateLiftSign = PrivateLiftSign.deserialize(privateLiftSignConfig);
+                this.privateLiftSigns.put(privateLiftSign.getLocation(), privateLiftSign);
+            } catch (SignLiftException e) {
+                this.logger.log(Level.WARNING, "Could not deserialize PrivateLiftSign configuration file at " + privateLiftSignConfigFile.getPath());
+                this.logger.log(Level.WARNING, "Skipping PrivateLiftSign.");
+                this.logger.log(Level.WARNING, e.getClass().getSimpleName() + " thrown.", e);
+            }
+        }
+        
         // Miscellaneous setup
         
         this.pendingInformation = new HashSet<UUID>();
         this.pendingModifications = new ConcurrentHashMap<UUID, ChangeData>();
         
-        this.getServer().getPluginManager().registerEvents(new SignLiftEventHandler(this), this);
+        this.server.getPluginManager().registerEvents(new SignLiftEventHandler(this), this);
         
-        ConfigData.reloadConfig(this, this.getServer().getConsoleSender(), false);
-        ConfigMessage.reloadMessages(this, this.getServer().getConsoleSender(), false);
+        this.reloadConfig(this.server.getConsoleSender(), false);
+        this.reloadMessages(this.server.getConsoleSender(), false);
     }
     
     /**
@@ -241,6 +283,51 @@ public final class SignLiftPlugin extends JavaPlugin {
     }
     
     ////////////////////////////
+    // COMMAND ACCESS METHODS //
+    ////////////////////////////
+    
+    /**
+     * Reloads the configuration information for this plugin.
+     *
+     * @param player The {@link Player} triggering the configuration reload.
+     */
+    public void reloadConfig(@NotNull final Player player) {
+        this.reloadConfig(player, true);
+    }
+    
+    /**
+     * Reloads the configuration information for this plugin.
+     *
+     * @param sender The {@link CommandSender} triggering the configuration
+     *               reload.
+     * @param command {@code true} if this was triggered by a command,
+     *                {@code false} otherwise (during initial plugin loading).
+     */
+    private void reloadConfig(@NotNull final CommandSender sender, final boolean command) {
+        ConfigData.reloadConfig(this, sender, command);
+    }
+    
+    /**
+     * Reloads the messages for this plugin.
+     *
+     * @param player The {@link Player} triggering the message reload.
+     */
+    public void reloadMessages(@NotNull final Player player) {
+        this.reloadMessages(player, true);
+    }
+    
+    /**
+     * Reloads the messages for this plugin.
+     *
+     * @param sender The {@link CommandSender} triggering the message reload.
+     * @param command {@code true} if this was triggered by a command,
+     *                {@code false} otherwise (during initial plugin loading).
+     */
+    private void reloadMessages(@NotNull final CommandSender sender, final boolean command) {
+        ConfigMessage.reloadMessages(this, sender, command);
+    }
+    
+    ////////////////////////////
     // EVENT LISTENER METHODS //
     ////////////////////////////
     
@@ -259,7 +346,7 @@ public final class SignLiftPlugin extends JavaPlugin {
         for (final String commandName : this.getDescription().getCommands().keySet()) {
             
             removals.add(this.getDescription().getName() + ":" + commandName);
-            final PluginCommand command = this.getServer().getPluginCommand(commandName);
+            final PluginCommand command = this.server.getPluginCommand(commandName);
             if (command != null && !command.testPermissionSilent(player)) {
                 removals.add(commandName);
             }
@@ -289,12 +376,7 @@ public final class SignLiftPlugin extends JavaPlugin {
             
             this.nameToUniqueId.put(currentName.toLowerCase(), uniqueId);
             this.uniqueIdToName.put(uniqueId, currentName);
-            
-            if (!this.savePlayerData(new PlayerDataEntry(player))) {
-                this.logger.log(Level.WARNING, "Unable to save PlayerData.");
-                this.logger.log(Level.WARNING, "Name : " + currentName);
-                this.logger.log(Level.WARNING, "UUID : " + uniqueId.toString());
-            }
+            this.savePlayerData(new PlayerDataEntry(player));
         } else if (!this.nameToUniqueId.containsKey(currentName.toLowerCase())) {
             this.logger.log(Level.CONFIG, "================================================");
             this.logger.log(Level.CONFIG, "Player Login: UPDATE NAME");
@@ -310,11 +392,7 @@ public final class SignLiftPlugin extends JavaPlugin {
             this.nameToUniqueId.put(currentName.toLowerCase(), uniqueId);
             this.uniqueIdToName.put(uniqueId, currentName);
             
-            if (!this.savePlayerData(new PlayerDataEntry(player))) {
-                this.logger.log(Level.WARNING, "Unable to save PlayerData.");
-                this.logger.log(Level.WARNING, "Name : " + currentName);
-                this.logger.log(Level.WARNING, "UUID : " + uniqueId.toString());
-            }
+            this.savePlayerData(new PlayerDataEntry(player));
         } else {
             this.logger.log(Level.CONFIG, "================================================");
             this.logger.log(Level.CONFIG, "Player Login: KNOWN PLAYER");
@@ -325,37 +403,60 @@ public final class SignLiftPlugin extends JavaPlugin {
         }
     }
     
-    //////////////////////////////////////
-    // LIFTSIGN HANDLING PUBLIC METHODS //
-    //////////////////////////////////////
+    ///////////////////////////////////////
+    // PLAYER DATA ACCESS PUBLIC METHODS //
+    ///////////////////////////////////////
     
     /**
-     * Gets the {@link PrivateLiftSign} at the given {@link Location}, if one
-     * exists. Otherwise, returns {@code null}.
+     * Gets the {@link UUID} for the given {@link Player} name, or {@code null}
+     * if one does not exist or is otherwise unknown.
      *
-     * @param location The {@link Location} to check for a
-     *                 {@link PrivateLiftSign}.
-     * @return The {@link PrivateLiftSign}, if one exists. {@code null}
-     *         otherwise.
+     * @param name The name of the {@link Player}.
+     * @return The {@link UUID} of the {@link Player} if it is known, otherwise
+     *         {@code null}.
      */
     @Nullable
-    public PrivateLiftSign getPrivateLiftSign(@NotNull final Location location) {
-        return this.loadLiftSign(location);
+    public UUID getUniqueId(@NotNull final String name) {
+        return this.nameToUniqueId.get(name.toLowerCase());
     }
     
     /**
-     * Adds a new {@link PrivateLiftSign} to the known {@link PrivateLiftSign}s.
-     * This is usually used when a {@link Player} creates a new
-     * {@link PrivateLiftSign}.
+     * Gets the name for the given {@link Player} {@link UUID}, or {@code null}
+     * if one does not exist or is otherwise unknown.
      *
-     * @param privateLiftSign The new {@link PrivateLiftSign}.
-     * @param player The {@link Player} that created the
-     *               {@link PrivateLiftSign}.
+     * @param uniqueId The {@link UUID} of the {@link Player}.
+     * @return The name of the {@link Player} if it is known, otherwise
+     *         {@code null}.
      */
-    public void addPrivateLiftSign(@NotNull final PrivateLiftSign privateLiftSign, @NotNull final Player player) {
-        if (!this.saveLiftSign(privateLiftSign)) {
-            player.sendMessage(ConfigMessage.getLiftsignFileErrorSave());
-        }
+    @Nullable
+    public String getName(@NotNull final UUID uniqueId) {
+        return this.uniqueIdToName.get(uniqueId);
+    }
+    
+    /**
+     * Gets a {@link Collection} of all {@link Player} names known by this
+     * {@link SignLiftPlugin}.
+     *
+     * @return An unmodifiable {@link Collection} of all {@link Player} names.
+     */
+    @NotNull
+    public Collection<String> getAllNames() {
+        return Collections.unmodifiableCollection(this.uniqueIdToName.values());
+    }
+    
+    /////////////////////////////////////////
+    // LIFTSIGN INFORMATION PUBLIC METHODS //
+    /////////////////////////////////////////
+    
+    /**
+     * Adds the given {@link Player} to the {@link Set} of all {@link Player}s
+     * that have entered the {@code /signlift info} command, but have not yet
+     * punched a {@link Block}.
+     *
+     * @param player The {@link Player} to mark as pending information.
+     */
+    public void addPendingInformation(@NotNull final Player player) {
+        this.pendingInformation.add(player.getUniqueId());
     }
     
     /**
@@ -390,7 +491,7 @@ public final class SignLiftPlugin extends JavaPlugin {
         if (!this.pendingInformation.remove(player.getUniqueId())) {
             this.logger.log(Level.WARNING, "Player attempting to get LiftSign information, Player is not pending information.");
             this.logger.log(Level.WARNING, "Somehow got past the isPendingInformation() check.");
-            this.logger.log(Level.WARNING, "Player name: " + player.getName());
+            this.logger.log(Level.WARNING, "Player Name: " + player.getName());
             this.logger.log(Level.WARNING, "Player UUID: " + player.getUniqueId());
             return;
         }
@@ -399,11 +500,11 @@ public final class SignLiftPlugin extends JavaPlugin {
             player.sendMessage(ConfigMessage.getLiftsignInfoPublic());
         } else if (LiftSign.isPrivateLiftSign(location)) {
             
-            final PrivateLiftSign privateLiftSign = this.loadLiftSign(location);
+            final PrivateLiftSign privateLiftSign = this.getPrivateLiftSign(location);
             if (privateLiftSign == null) {
                 this.logger.log(Level.WARNING, "Player checking info for PrivateLiftSign, no LiftSign found.");
                 this.logger.log(Level.WARNING, "Previous check showed that the Location had a PrivateLiftSign.");
-                this.logger.log(Level.WARNING, "Player name: " + player.getName());
+                this.logger.log(Level.WARNING, "Player Name: " + player.getName());
                 this.logger.log(Level.WARNING, "Player UUID: " + player.getUniqueId());
                 this.logger.log(Level.WARNING, "World: " + (location.getWorld() == null ? "null" : location.getWorld().getName()));
                 this.logger.log(Level.WARNING, "X: " + location.getBlockX());
@@ -421,20 +522,20 @@ public final class SignLiftPlugin extends JavaPlugin {
             player.sendMessage(ConfigMessage.getLiftsignInfoPrivate());
             player.sendMessage("§r§8--------------------------------§r");
             player.sendMessage("§r§6Owner§r§f:§r");
-            player.sendMessage("§r §f-§r §b" + this.uniqueIdToName.get(owner) + "§r §6[" + owner.toString() + "]§r");
+            player.sendMessage("§r §f-§r §b" + this.getName(owner) + "§r §6[" + owner.toString() + "]§r");
             
             if (!admins.isEmpty()) {
                 player.sendMessage("§r§8--------------------------------§r");
                 player.sendMessage("§r§6Admin§r§f:§r");
                 for (final UUID admin : admins) {
-                    player.sendMessage("§r §f-§r §b" + uniqueIdToName.get(admin) + "§r §6[" + admin.toString() + "]§r");
+                    player.sendMessage("§r §f-§r §b" + this.getName(admin) + "§r §6[" + admin.toString() + "]§r");
                 }
             }
             if (!members.isEmpty()) {
                 player.sendMessage("§r§8--------------------------------§r");
                 player.sendMessage("§r§6Members§r§f:§r");
                 for (final UUID member : members) {
-                    player.sendMessage("§r §f-§r §b" + uniqueIdToName.get(member) + "§r §6[" + member.toString() + "]§r");
+                    player.sendMessage("§r §f-§r §b" + this.getName(member) + "§r §6[" + member.toString() + "]§r");
                 }
             }
             
@@ -444,36 +545,147 @@ public final class SignLiftPlugin extends JavaPlugin {
         }
     }
     
-    public boolean isPendingModification(final Player player) {
-        return pendingModifications.containsKey(player.getUniqueId());
+    ////////////////////////////////////
+    // PRIVATE LIFTSIGN BASIC METHODS //
+    ////////////////////////////////////
+    
+    /**
+     * Gets the {@link PrivateLiftSign} at the given {@link Location}, if one
+     * exists. Otherwise, returns {@code null}.
+     *
+     * @param location The {@link Location} to check for a
+     *                 {@link PrivateLiftSign}.
+     * @return The {@link PrivateLiftSign}, if one exists. {@code null}
+     *         otherwise.
+     */
+    @Nullable
+    public PrivateLiftSign getPrivateLiftSign(@NotNull final Location location) {
+        return this.privateLiftSigns.get(location);
     }
     
-    public boolean removePendingModification(final Player player) {
-        return pendingModifications.remove(player.getUniqueId()) != null;
+    /**
+     * Adds a new {@link PrivateLiftSign} to the known {@link PrivateLiftSign}s.
+     * This is usually used when a {@link Player} creates a new
+     * {@link PrivateLiftSign}.
+     *
+     * @param privateLiftSign The new {@link PrivateLiftSign}.
+     * @param player The {@link Player} that created the
+     *               {@link PrivateLiftSign}.
+     */
+    public void addPrivateLiftSign(@NotNull final PrivateLiftSign privateLiftSign, @NotNull final Player player) {
+        this.saveLiftSign(privateLiftSign, player);
     }
     
-    public void modifyPrivateLiftSign(final Location location, final Player player) {
+    /**
+     * Removes a {@link PrivateLiftSign} at the given {@link Location}, if one
+     * exists.
+     *
+     * @param privateLiftSign The {@link PrivateLiftSign} to remove.
+     * @param player The {@link Player} triggering the removal.
+     */
+    public void removePrivateLiftSign(@NotNull final PrivateLiftSign privateLiftSign, @NotNull final Player player) {
+        this.deleteLiftSign(privateLiftSign, player);
+    }
+    
+    /**
+     * Activates the {@link PrivateLiftSign} at the given {@link Location} (if
+     * one exists) for the specified {@link Player}.
+     *
+     * @param location The {@link Location} of the {@link PrivateLiftSign} to
+     *                 activate (if one exists).
+     * @param player The {@link Player} activating the {@link PrivateLiftSign}.
+     * @see LiftSign#activate(Player, SignLiftPlugin)
+     */
+    public void usePrivateLiftSign(@NotNull final Location location, @NotNull final Player player) {
         
-        if(!pendingModifications.containsKey(player.getUniqueId())) {
+        final PrivateLiftSign privateLiftSign = this.getPrivateLiftSign(location);
+        if (privateLiftSign == null) {
+            this.logger.log(Level.WARNING, "PrivateLiftSign found twice at Location, cannot retrieve for activation.");
+            this.logger.log(Level.WARNING, "Player Name: " + player.getName());
+            this.logger.log(Level.WARNING, "Player UUID: " + player.getUniqueId());
+            this.logger.log(Level.WARNING, "World: " + (location.getWorld() == null ? "null" : location.getWorld().getName()));
+            this.logger.log(Level.WARNING, "X: " + location.getBlockX());
+            this.logger.log(Level.WARNING, "Y: " + location.getBlockY());
+            this.logger.log(Level.WARNING, "Z: " + location.getBlockZ());
             return;
         }
         
-        final ChangeData changeData = pendingModifications.get(player.getUniqueId());
-        final boolean changeOwner = changeData.isOwnerChanging();
+        privateLiftSign.activate(player, this);
+    }
+    
+    ///////////////////////////////////////////
+    // PRIVATE LIFTSIGN MODIFICATION METHODS //
+    ///////////////////////////////////////////
+    
+    /**
+     * Adds a pending modification item (as {@link ChangeData}) from the given
+     * {@link Player}, so that the {@link Player} can click on the
+     * {@link PrivateLiftSign} they wish to modify and apply the changes.
+     *
+     * @param player The {@link Player} preparing the {@link ChangeData}.
+     * @param changeData The pending modifications for the
+     *                   {@link PrivateLiftSign} of the {@link Player}'s
+     *                   choosing.
+     */
+    public void addPendingModification(@NotNull final Player player, @NotNull final ChangeData changeData) {
+        this.pendingModifications.put(player.getUniqueId(), changeData);
+    }
+    
+    /**
+     * Checks to see if the given {@link Player} has a modification pending for
+     * a {@link PrivateLiftSign}.
+     *
+     * @param player The {@link Player} to check.
+     * @return {@code true} if the given {@link Player} has a modification
+     *         pending, {@code false} otherwise.
+     */
+    public boolean isPendingModification(@NotNull final Player player) {
+        return this.pendingModifications.containsKey(player.getUniqueId());
+    }
+    
+    /**
+     * Removes the pending modification for the given {@link Player}, if any
+     * exists.
+     *
+     * @param player The {@link Player} to remove the pending modification for.
+     * @return {@code true} if there was a pending modification that was
+     *         removed, {@code false} otherwise.
+     */
+    public boolean removePendingModification(@NotNull final Player player) {
+        return this.pendingModifications.remove(player.getUniqueId()) != null;
+    }
+    
+    /**
+     * Modifies the {@link PrivateLiftSign} at the given {@link Location} (if
+     * one exists).
+     * <p>
+     * If one does not exist, and error will be displayed and logged.
+     *
+     * @param location The {@link Location} of the {@link PrivateLiftSign}.
+     * @param player The {@link Player} performing the modification.
+     */
+    public void modifyPrivateLiftSign(@NotNull final Location location, @NotNull final Player player) {
+        
+        if (!this.pendingModifications.containsKey(player.getUniqueId())) {
+            this.logger.log(Level.WARNING, "Player attempting to modify PrivateLiftSign, Player is not pending modification.");
+            this.logger.log(Level.WARNING, "Somehow got past the isPendingModification() check.");
+            this.logger.log(Level.WARNING, "Player Name: " + player.getName());
+            this.logger.log(Level.WARNING, "Player UUID: " + player.getUniqueId());
+            return;
+        }
+        
+        final ChangeData changeData = this.pendingModifications.remove(player.getUniqueId());
         final UUID newOwner = changeData.getOwner();
-        final HashSet<UUID> admins = changeData.getAdmins();
-        final HashSet<UUID> members = changeData.getMembers();
-        final HashSet<UUID> removals = changeData.getRemovals();
-        final ArrayList<String> unknowns = changeData.getUnknowns();
+        final Set<UUID> admins = changeData.getAdmins();
+        final Set<UUID> members = changeData.getMembers();
+        final Set<UUID> removals = changeData.getRemovals();
+        final List<String> unknowns = changeData.getUnknowns();
         
-        pendingModifications.remove(player.getUniqueId());
-        
-        final PrivateLiftSign privateLiftSign = loadLiftSign(location);
-        if(privateLiftSign == null) {
-            if(LiftSign.isPublicLiftSign(location)) {
+        final PrivateLiftSign privateLiftSign = this.getPrivateLiftSign(location);
+        if (privateLiftSign == null) {
+            if (LiftSign.isPublicLiftSign(location)) {
                 player.sendMessage(ConfigMessage.getLiftsignModifyPublic());
-            }
-            else {
+            } else {
                 player.sendMessage(ConfigMessage.getLiftsignModifyOther());
             }
             return;
@@ -483,81 +695,86 @@ public final class SignLiftPlugin extends JavaPlugin {
         final boolean canModifyAdmins = privateLiftSign.canModifyAdmins(player);
         final boolean canModifyMembers = privateLiftSign.canModifyMembers(player);
         
-        if(changeOwner) {
-            if(canModifyOwner) {
-                
+        if (newOwner != null) {
+            if (canModifyOwner) {
                 privateLiftSign.changeOwner(newOwner);
-                player.sendMessage(ConfigMessage.getLiftsignModifyPrivateOwnerAllow().replace("%%player%%", uniqueIdToName.get(newOwner)));
-            }
-            else {
+                String name = this.getName(newOwner);
+                if (name == null) {
+                    name = newOwner.toString();
+                }
+                
+                player.sendMessage(ConfigMessage.getLiftsignModifyPrivateOwnerAllow().replace("%%player%%", name));
+            } else {
                 player.sendMessage(ConfigMessage.getLiftsignModifyPrivateOwnerDeny());
             }
         }
         
-        final ArrayList<String> messages = new ArrayList<String>();
+        final List<String> messages = new ArrayList<String>();
         
-        if(!admins.isEmpty()) {
-            if(canModifyAdmins) {
+        if (!admins.isEmpty()) {
+            if (canModifyAdmins) {
                 
-                for(final UUID admin : admins) {
-                    if(privateLiftSign.addAdmin(admin)) {
-                        if(privateLiftSign.isMember(admin)) {
-                            privateLiftSign.removeMember(admin);
-                            messages.add(ConfigMessage.getLiftsignModifyPrivateAdminChange().replace("%%player%%", uniqueIdToName.get(admin)));
-                        }
-                        else {
-                            messages.add(ConfigMessage.getLiftsignModifyPrivateAdminTrue().replace("%%player%%", uniqueIdToName.get(admin)));
-                        }
+                for (final UUID admin : admins) {
+                    String name = this.getName(admin);
+                    if (name == null) {
+                        name = admin.toString();
                     }
-                    else {
-                        messages.add(ConfigMessage.getLiftsignModifyPrivateAdminFalse().replace("%%player%%", uniqueIdToName.get(admin)));
+                    
+                    if (privateLiftSign.addAdmin(admin)) {
+                        if (privateLiftSign.isMember(admin)) {
+                            privateLiftSign.removeMember(admin);
+                            messages.add(ConfigMessage.getLiftsignModifyPrivateAdminChange().replace("%%player%%", name));
+                        } else {
+                            messages.add(ConfigMessage.getLiftsignModifyPrivateAdminTrue().replace("%%player%%", name));
+                        }
+                    } else {
+                        messages.add(ConfigMessage.getLiftsignModifyPrivateAdminFalse().replace("%%player%%", name));
                     }
                 }
-            }
-            else {
+            } else {
                 messages.add(ConfigMessage.getLiftsignModifyPrivateAdminDeny());
             }
         }
         
-        if(!members.isEmpty()) {
-            if(canModifyMembers) {
+        if (!members.isEmpty()) {
+            if (canModifyMembers) {
                 
-                for(final UUID member : members) {
-                    if(privateLiftSign.addMember(member)) {
-                        if(privateLiftSign.isAdmin(member)) {
-                            if(canModifyAdmins) {
+                for (final UUID member : members) {
+                    String name = this.getName(member);
+                    if (name == null) {
+                        name = member.toString();
+                    }
+                    
+                    if (privateLiftSign.addMember(member)) {
+                        if (privateLiftSign.isAdmin(member)) {
+                            if (canModifyAdmins) {
                                 privateLiftSign.removeAdmin(member);
-                                messages.add(ConfigMessage.getLiftsignModifyPrivateMemberChange().replace("%%player%%", uniqueIdToName.get(member)));
-                            }
-                            else {
+                                messages.add(ConfigMessage.getLiftsignModifyPrivateMemberChange().replace("%%player%%", name));
+                            } else {
                                 privateLiftSign.removeMember(member);
                                 messages.add(ConfigMessage.getLiftsignModifyPrivateAdminDeny());
                             }
+                        } else {
+                            messages.add(ConfigMessage.getLiftsignModifyPrivateMemberTrue().replace("%%player%%", name));
                         }
-                        else {
-                            messages.add(ConfigMessage.getLiftsignModifyPrivateMemberTrue().replace("%%player%%", uniqueIdToName.get(member)));
-                        }
-                    }
-                    else {
-                        messages.add(ConfigMessage.getLiftsignModifyPrivateMemberFalse().replace("%%player%%", uniqueIdToName.get(member)));
+                    } else {
+                        messages.add(ConfigMessage.getLiftsignModifyPrivateMemberFalse().replace("%%player%%", name));
                     }
                 }
-            }
-            else {
+            } else {
                 messages.add(ConfigMessage.getLiftsignModifyPrivateMemberDeny());
             }
         }
         
-        if(!removals.isEmpty()) {
+        if (!removals.isEmpty()) {
             
-            final HashSet<UUID> removeAdmins = new HashSet<UUID>();
-            final HashSet<UUID> removeMembers = new HashSet<UUID>();
+            final Set<UUID> removeAdmins = new HashSet<UUID>();
+            final Set<UUID> removeMembers = new HashSet<UUID>();
             
-            for(final UUID removal : removals) {
-                if(privateLiftSign.isAdmin(removal)) {
+            for (final UUID removal : removals) {
+                if (privateLiftSign.isAdmin(removal)) {
                     removeAdmins.add(removal);
-                }
-                else if(privateLiftSign.isMember(removal)) {
+                } else if (privateLiftSign.isMember(removal)) {
                     removeMembers.add(removal);
                 }
             }
@@ -565,302 +782,238 @@ public final class SignLiftPlugin extends JavaPlugin {
             removals.removeAll(removeAdmins);
             removals.removeAll(removeMembers);
             
-            if(!removeAdmins.isEmpty()) {
-                if(canModifyAdmins) {
+            if (!removeAdmins.isEmpty()) {
+                if (canModifyAdmins) {
                     
-                    for(final UUID admin : removeAdmins) {
-                        if(privateLiftSign.removeAdmin(admin)) {
-                            messages.add(ConfigMessage.getLiftsignModifyPrivateRemoveTrue().replace("%%player%%", uniqueIdToName.get(admin)));
+                    for (final UUID admin : removeAdmins) {
+                        String name = this.getName(admin);
+                        if (name == null) {
+                            name = admin.toString();
                         }
-                        else {
-                            messages.add(ConfigMessage.getLiftsignModifyPrivateRemoveFalse().replace("%%player%%", uniqueIdToName.get(admin)));
+                        
+                        if (privateLiftSign.removeAdmin(admin)) {
+                            messages.add(ConfigMessage.getLiftsignModifyPrivateRemoveTrue().replace("%%player%%", name));
+                        } else {
+                            messages.add(ConfigMessage.getLiftsignModifyPrivateRemoveFalse().replace("%%player%%", name));
                         }
                     }
-                }
-                else {
+                } else {
                     messages.add(ConfigMessage.getLiftsignModifyPrivateRemoveDeny());
                 }
             }
             
-            if(!removeMembers.isEmpty()) {
-                if(canModifyMembers) {
+            if (!removeMembers.isEmpty()) {
+                if (canModifyMembers) {
                     
-                    for(final UUID member : removeMembers) {
-                        if(privateLiftSign.removeMember(member)) {
-                            messages.add(ConfigMessage.getLiftsignModifyPrivateRemoveTrue().replace("%%player%%", uniqueIdToName.get(member)));
+                    for (final UUID member : removeMembers) {
+                        String name = this.getName(member);
+                        if (name == null) {
+                            name = member.toString();
                         }
-                        else {
-                            messages.add(ConfigMessage.getLiftsignModifyPrivateRemoveFalse().replace("%%player%%", uniqueIdToName.get(member)));
+                        
+                        if (privateLiftSign.removeMember(member)) {
+                            messages.add(ConfigMessage.getLiftsignModifyPrivateRemoveTrue().replace("%%player%%", name));
+                        } else {
+                            messages.add(ConfigMessage.getLiftsignModifyPrivateRemoveFalse().replace("%%player%%", name));
                         }
                     }
-                }
-                else {
+                } else {
                     messages.add(ConfigMessage.getLiftsignModifyPrivateRemoveDeny());
                 }
             }
             
-            if(!removals.isEmpty()) {
-                if(!canModifyAdmins && !canModifyMembers) {
+            if (!removals.isEmpty()) {
+                if (!canModifyAdmins && !canModifyMembers) {
                     messages.add(ConfigMessage.getLiftsignModifyPrivateRemoveDeny());
-                }
-                else {
-                    
-                    for(final UUID removal : removals) {
-                        messages.add(ConfigMessage.getLiftsignModifyPrivateRemoveFalse().replace("%%player%%", uniqueIdToName.get(removal)));
+                } else {
+                    for (final UUID removal : removals) {
+                        String name = this.getName(removal);
+                        if (name == null) {
+                            name = removal.toString();
+                        }
+                        
+                        messages.add(ConfigMessage.getLiftsignModifyPrivateRemoveFalse().replace("%%player%%", name));
                     }
                 }
             }
         }
         
-        if(!unknowns.isEmpty()) {
+        if (!unknowns.isEmpty()) {
             if(!canModifyOwner && !canModifyAdmins && !canModifyMembers) {
                 messages.add(ConfigMessage.getLiftsignModifyPrivateUnknownDeny());
-            }
-            else {
-                
-                for(final String unknown : unknowns) {
+            } else {
+                for (final String unknown : unknowns) {
                     messages.add(ConfigMessage.getLiftsignModifyPrivateUnknownUnknown().replace("%%player%%", unknown));
                 }
             }
         }
         
-        for(final String message : messages) {
+        for (final String message : messages) {
             player.sendMessage(message);
         }
         
-        if(!saveLiftSign(privateLiftSign)) {
-            player.sendMessage(ConfigMessage.getLiftsignFileErrorSave());
-        }
+        this.saveLiftSign(privateLiftSign, player);
     }
     
-    public boolean removePrivateLiftSign(final Location location) {
-        return deleteLiftSign(location);
-    }
+    ////////////////////////////
+    // PRIVATE HELPER METHODS //
+    ////////////////////////////
     
-    public void usePrivateLiftSign(final Location location, final Player player) {
-        
-        final PrivateLiftSign privateLiftSign = loadLiftSign(location);
-        if(privateLiftSign == null) {
-            return;
-        }
-        
-        privateLiftSign.activate(player, this);
-    }
+    /**
+     * Saves the given {@link PlayerDataEntry} to a file as a
+     * {@link YamlConfiguration}.
+     *
+     * @param playerDataEntry The {@link PlayerDataEntry} to save.
+     */
+    private void savePlayerData(@NotNull final PlayerDataEntry playerDataEntry) {
     
-    private List<String> getPlayerSuggestions(final List<String> completions, final ArrayList<String> splitCommand, final boolean endsWithSpace) {
-        
-        for(final Player player : getServer().getOnlinePlayers()) {
-            completions.add(player.getName());
-        }
-        for(final String player : uniqueIdToName.values()) {
-            if(!completions.contains(player)) {
-                completions.add(player);
+        this.scheduler.runTaskAsynchronously(this, () -> {
+            
+            final File configFile = new File(this.playerDataFolder, playerDataEntry.getUniqueId().toString() + ".yml");
+            try {
+                if (!configFile.exists()) {
+                    if (!configFile.createNewFile()) {
+                        this.logger.log(Level.WARNING, "PlayerDataEntry configuration file not created at " + configFile.getPath());
+                        this.logger.log(Level.WARNING, "Unable to save PlayerDataEntry.");
+                        this.logger.log(Level.WARNING, "Name : " + playerDataEntry.getName());
+                        this.logger.log(Level.WARNING, "UUID : " + playerDataEntry.getUniqueId().toString());
+                    }
+                } else if (!configFile.isFile()) {
+                    this.logger.log(Level.WARNING, "PlayerDataEntry configuration file is not a file: " + configFile.getPath());
+                    this.logger.log(Level.WARNING, "Unable to save PlayerDataEntry.");
+                    this.logger.log(Level.WARNING, "Name : " + playerDataEntry.getName());
+                    this.logger.log(Level.WARNING, "UUID : " + playerDataEntry.getUniqueId().toString());
+                }
+            } catch (SecurityException | IOException e) {
+                this.logger.log(Level.WARNING, "Unable to verify if PlayerDataEntry configuration file exists/is a file at " + configFile.getPath());
+                this.logger.log(Level.WARNING, "Unable to save PlayerDataEntry.");
+                this.logger.log(Level.WARNING, "Name : " + playerDataEntry.getName());
+                this.logger.log(Level.WARNING, "UUID : " + playerDataEntry.getUniqueId().toString());
+                this.logger.log(Level.WARNING, e.getClass().getSimpleName() + " thrown.", e);
             }
-        }
-        
-        if(splitCommand.isEmpty() || endsWithSpace) {
-            return completions;
-        }
-        
-        final String lastPlayer = splitCommand.get(splitCommand.size() - 1);
-        final String prefix;
-        if(lastPlayer.startsWith("@")) {
-            prefix = "@";
-        }
-        else if(lastPlayer.startsWith("-")) {
-            prefix = "-";
-        }
-        else {
-            prefix = "";
-        }
-        
-        for(int index = 0; index < completions.size(); index++) {
-            completions.set(index, prefix + completions.get(index));
-        }
-        
-        final Iterator<String> completionsIterator = completions.iterator();
-        while(completionsIterator.hasNext()) {
-            if(!completionsIterator.next().toLowerCase().startsWith(lastPlayer.toLowerCase())) {
-                completionsIterator.remove();
+            
+            try {
+                playerDataEntry.serializeForSave().save(configFile);
+            } catch (IOException e) {
+                this.logger.log(Level.WARNING, "Unable to save PlayerDataEntry configuration file at " + configFile.getPath());
+                this.logger.log(Level.WARNING, "Unable to save PlayerDataEntry.");
+                this.logger.log(Level.WARNING, "Name : " + playerDataEntry.getName());
+                this.logger.log(Level.WARNING, "UUID : " + playerDataEntry.getUniqueId().toString());
+                this.logger.log(Level.WARNING, e.getClass().getSimpleName() + " thrown.", e);
             }
-        }
-        
-        return completions;
+        });
     }
     
-    private boolean savePlayerData(final PlayerDataEntry playerDataEntry) {
+    /**
+     * Saves an updated {@link PrivateLiftSign}, usually used after creation or
+     * after a modification.
+     *
+     * @param privateLiftSign The {@link PrivateLiftSign} to save.
+     * @param player The {@link Player} triggering the save.
+     */
+    private void saveLiftSign(@NotNull final PrivateLiftSign privateLiftSign, @NotNull final Player player) {
         
-        final YamlConfiguration config = new YamlConfiguration();
-        config.set("player_data", playerDataEntry);
+        this.privateLiftSigns.put(privateLiftSign.getLocation(), privateLiftSign);
+        this.scheduler.runTaskAsynchronously(this, () -> {
         
-        final File configFile = new File(playerDataFolder, playerDataEntry.getUniqueId().toString() + ".yml");
-        final String configFilePath = configFile.getPath();
-        
-        try {
-            if(!configFile.exists()) {
-                try {
-                    configFile.createNewFile();
+            final File configFile = new File(this.playerDataFolder, this.getConfigFileName(privateLiftSign));
+            try {
+                if (!configFile.exists()) {
+                    if (!configFile.createNewFile()) {
+                        this.logger.log(Level.WARNING, "PrivateLiftSign configuration file not created at " + configFile.getPath());
+                        this.logger.log(Level.WARNING, "Unable to save PrivateLiftSign.");
+                        this.logger.log(Level.WARNING, "World: " + (privateLiftSign.getLocation().getWorld() == null ? "null" : privateLiftSign.getLocation().getWorld().getName()));
+                        this.logger.log(Level.WARNING, "X: " + privateLiftSign.getLocation().getBlockX());
+                        this.logger.log(Level.WARNING, "Y: " + privateLiftSign.getLocation().getBlockY());
+                        this.logger.log(Level.WARNING, "Z: " + privateLiftSign.getLocation().getBlockZ());
+                        player.sendMessage(ConfigMessage.getLiftsignFileErrorSave());
+                    }
+                } else if (!configFile.isFile()) {
+                    this.logger.log(Level.WARNING, "PrivateLiftSign configuration file is not a file: " + configFile.getPath());
+                    this.logger.log(Level.WARNING, "Unable to save PrivateLiftSign.");
+                    this.logger.log(Level.WARNING, "World: " + (privateLiftSign.getLocation().getWorld() == null ? "null" : privateLiftSign.getLocation().getWorld().getName()));
+                    this.logger.log(Level.WARNING, "X: " + privateLiftSign.getLocation().getBlockX());
+                    this.logger.log(Level.WARNING, "Y: " + privateLiftSign.getLocation().getBlockY());
+                    this.logger.log(Level.WARNING, "Z: " + privateLiftSign.getLocation().getBlockZ());
+                    player.sendMessage(ConfigMessage.getLiftsignFileErrorSave());
                 }
-                catch(IOException e) {
-                    this.logger.log(Level.WARNING, "Unable to create player data config file at " + configFilePath);
-                    this.logger.log(Level.WARNING, "IOException thrown.", e);
-                    return false;
-                }
-                catch(SecurityException e) {
-                    this.logger.log(Level.WARNING, "Unable to create player data config file at " + configFilePath);
-                    this.logger.log(Level.WARNING, "SecurityException thrown.", e);
-                    return false;
-                }
+            } catch (SecurityException | IOException e) {
+                this.logger.log(Level.WARNING, "Unable to verify if PrivateLiftSign configuration file exists/is a file at " + configFile.getPath());
+                this.logger.log(Level.WARNING, "Unable to save PrivateLiftSign.");
+                this.logger.log(Level.WARNING, "World: " + (privateLiftSign.getLocation().getWorld() == null ? "null" : privateLiftSign.getLocation().getWorld().getName()));
+                this.logger.log(Level.WARNING, "X: " + privateLiftSign.getLocation().getBlockX());
+                this.logger.log(Level.WARNING, "Y: " + privateLiftSign.getLocation().getBlockY());
+                this.logger.log(Level.WARNING, "Z: " + privateLiftSign.getLocation().getBlockZ());
+                this.logger.log(Level.WARNING, e.getClass().getSimpleName() + " thrown.", e);
+                player.sendMessage(ConfigMessage.getLiftsignFileErrorSave());
             }
-        }
-        catch(SecurityException e) {
-            this.logger.log(Level.WARNING, "Unable to verify if player data config file exists at " + configFilePath);
-            this.logger.log(Level.WARNING, "SecurityException thrown.", e);
-            return false;
-        }
         
-        try {
-            config.save(configFile);
-        }
-        catch(IOException e) {
-            this.logger.log(Level.WARNING, "Unable to save player data config file at " + configFilePath);
-            this.logger.log(Level.WARNING, "IOException thrown.", e);
-            return false;
-        }
-        
-        return true;
-    }
-    
-    private PrivateLiftSign loadLiftSign(final Location location) {
-        
-        final File configFile = new File(privateLiftSignFolder, getConfigFileName(location));
-        final String configFilePath = configFile.getPath();
-        
-        try {
-            if(!configFile.exists()) {
-                return null;
+            try {
+                privateLiftSign.serializeForSave().save(configFile);
+            } catch (IOException e) {
+                this.logger.log(Level.WARNING, "Unable to save PrivateLiftSign configuration file at " + configFile.getPath());
+                this.logger.log(Level.WARNING, "Unable to save PrivateLiftSign.");
+                this.logger.log(Level.WARNING, "World: " + (privateLiftSign.getLocation().getWorld() == null ? "null" : privateLiftSign.getLocation().getWorld().getName()));
+                this.logger.log(Level.WARNING, "X: " + privateLiftSign.getLocation().getBlockX());
+                this.logger.log(Level.WARNING, "Y: " + privateLiftSign.getLocation().getBlockY());
+                this.logger.log(Level.WARNING, "Z: " + privateLiftSign.getLocation().getBlockZ());
+                this.logger.log(Level.WARNING, e.getClass().getSimpleName() + " thrown.", e);
+                player.sendMessage(ConfigMessage.getLiftsignFileErrorSave());
             }
-        }
-        catch(SecurityException e) {
-            this.logger.log(Level.WARNING, "Unable to verify if private lift sign config file exists for load at " + configFilePath);
-            this.logger.log(Level.WARNING, "SecurityException thrown.", e);
-            return null;
-        }
-        
-        final YamlConfiguration config = new YamlConfiguration();
-        try {
-            config.load(configFile);
-        }
-        catch(FileNotFoundException e) {
-            this.logger.log(Level.WARNING, "Unable to load private lift sign configuration file at " + configFilePath);
-            this.logger.log(Level.WARNING, "Skipping private lift sign.");
-            this.logger.log(Level.WARNING, "FileNotFoundException thrown.", e);
-            return null;
-        }
-        catch(IOException e) {
-            this.logger.log(Level.WARNING, "Unable to load private lift sign configuration file at " + configFilePath);
-            this.logger.log(Level.WARNING, "Skipping private lift sign.");
-            this.logger.log(Level.WARNING, "IOException thrown.", e);
-            return null;
-        }
-        catch(InvalidConfigurationException e) {
-            this.logger.log(Level.WARNING, "Unable to load private lift sign configuration file at " + configFilePath);
-            this.logger.log(Level.WARNING, "Skipping private lift sign.");
-            this.logger.log(Level.WARNING, "InvalidConfigurationException thrown.", e);
-            return null;
-        }
-        catch(IllegalArgumentException e) {
-            this.logger.log(Level.WARNING, "Unable to load private lift sign configuration file at " + configFilePath);
-            this.logger.log(Level.WARNING, "Skipping private lift sign.");
-            this.logger.log(Level.WARNING, "IllegalArgumentException thrown.", e);
-            return null;
-        }
-        
-        return config.getSerializable("private_lift_sign", PrivateLiftSign.class);
+        });
     }
     
-    private boolean saveLiftSign(final PrivateLiftSign privateLiftSign) {
+    /**
+     * Deletes the configuration file for the {@link PrivateLiftSign} (usually
+     * used when a {@link PrivateLiftSign} is broken or otherwise removed).
+     *
+     * @param privateLiftSign The {@link PrivateLiftSign} to remove.
+     * @param player The {@link Player} triggering the removal.
+     */
+    private void deleteLiftSign(@NotNull final PrivateLiftSign privateLiftSign, @NotNull final Player player) {
         
-        final YamlConfiguration config = new YamlConfiguration();
-        config.set("private_lift_sign", privateLiftSign);
-        
-        final File configFile = new File(privateLiftSignFolder, getConfigFileName(privateLiftSign.getLocation()));
-        final String configFilePath = configFile.getPath();
-        
-        try {
-            if(!configFile.exists()) {
-                try {
-                    configFile.createNewFile();
+        this.privateLiftSigns.remove(privateLiftSign.getLocation());
+        this.scheduler.runTaskAsynchronously(this, () -> {
+    
+            final File configFile = new File(this.privateLiftSignFolder, this.getConfigFileName(privateLiftSign));
+            try {
+                if (!configFile.delete()) {
+                    this.logger.log(Level.WARNING, "PrivateLiftSign configuration file was not deleted, no Exception thrown.");
+                    this.logger.log(Level.WARNING, "World: " + (privateLiftSign.getLocation().getWorld() == null ? "null" : privateLiftSign.getLocation().getWorld().getName()));
+                    this.logger.log(Level.WARNING, "X: " + privateLiftSign.getLocation().getBlockX());
+                    this.logger.log(Level.WARNING, "Y: " + privateLiftSign.getLocation().getBlockY());
+                    this.logger.log(Level.WARNING, "Z: " + privateLiftSign.getLocation().getBlockZ());
+                    player.sendMessage(ConfigMessage.getLiftsignFileErrorDelete());
                 }
-                catch(IOException e) {
-                    this.logger.log(Level.WARNING, "Unable to create private lift sign config file at " + configFilePath);
-                    this.logger.log(Level.WARNING, "IOException thrown.", e);
-                    return false;
-                }
-                catch(SecurityException e) {
-                    this.logger.log(Level.WARNING, "Unable to create private lift sign config file at " + configFilePath);
-                    this.logger.log(Level.WARNING, "SecurityException thrown.", e);
-                    return false;
-                }
+            } catch (SecurityException e) {
+                this.logger.log(Level.WARNING, "Unable to delete PrivateLiftSign configuration file at " + configFile.getPath());
+                this.logger.log(Level.WARNING, "World: " + (privateLiftSign.getLocation().getWorld() == null ? "null" : privateLiftSign.getLocation().getWorld().getName()));
+                this.logger.log(Level.WARNING, "X: " + privateLiftSign.getLocation().getBlockX());
+                this.logger.log(Level.WARNING, "Y: " + privateLiftSign.getLocation().getBlockY());
+                this.logger.log(Level.WARNING, "Z: " + privateLiftSign.getLocation().getBlockZ());
+                this.logger.log(Level.WARNING, e.getClass().getSimpleName() + " thrown.", e);
+                player.sendMessage(ConfigMessage.getLiftsignFileErrorDelete());
             }
-        }
-        catch(SecurityException e) {
-            this.logger.log(Level.WARNING, "Unable to verify if private lift sign config file exists for save at " + configFilePath);
-            this.logger.log(Level.WARNING, "SecurityException thrown.", e);
-            return false;
-        }
-        
-        try {
-            config.save(configFile);
-        }
-        catch(IOException e) {
-            this.logger.log(Level.WARNING, "Unable to save private lift sign config file at " + configFilePath);
-            this.logger.log(Level.WARNING, "IOException thrown.", e);
-            return false;
-        }
-        
-        return true;
+        });
     }
     
-    private boolean deleteLiftSign(final Location location) {
+    /**
+     * Gets the name of the configuration file that is used for
+     * {@link PrivateLiftSign}s, based on the {@link PrivateLiftSign}'s
+     * {@link Location}.
+     *
+     * @param privateLiftSign The {@link PrivateLiftSign} to get the
+     *                        configuration file name for.
+     * @return The name of the configuration file.
+     */
+    @NotNull
+    private String getConfigFileName(@NotNull final PrivateLiftSign privateLiftSign) {
         
-        final File configFile = new File(privateLiftSignFolder, getConfigFileName(location));
-        final String configFilePath = configFile.getPath();
-        
-        final boolean deleted;
-        try {
-            deleted = configFile.delete();
-        }
-        catch(SecurityException e) {
-            this.logger.log(Level.WARNING, "Unable to delete private lift sign config file at " + configFilePath);
-            this.logger.log(Level.WARNING, "SecurityException thrown.", e);
-            return false;
-        }
-        
-        if(!deleted) {
-            this.logger.log(Level.WARNING, "Private lift sign file was not deleted, no exception thrown.");
-        }
-        
-        return deleted;
-    }
-    
-    private String getConfigFileName(final Location location) {
-        
-        final String world = location.getWorld().getName();
-        
-        String x = String.valueOf(Math.abs(location.getBlockX()));
-        String y = String.valueOf(Math.abs(location.getBlockY()));
-        String z = String.valueOf(Math.abs(location.getBlockZ()));
-        
-        if(location.getBlockX() < 0) {
-            x = "n" + x;
-        }
-        if(location.getBlockY() < 0) {
-            y = "n" + y;
-        }
-        if(location.getBlockZ() < 0) {
-            z = "n" + z;
-        }
+        final Location location = privateLiftSign.getLocation();
+        final String world = location.getWorld() == null ? "null" : location.getWorld().getName();
+        final String x = String.valueOf(location.getBlockX()).replace("-", "n");
+        final String y = String.valueOf(location.getBlockY()).replace("-", "n");
+        final String z = String.valueOf(location.getBlockZ()).replace("-", "n");
         
         return world + "-" + x + "-" + y + "-" + z + ".yml";
     }
