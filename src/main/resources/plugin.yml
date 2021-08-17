@@ -1,4 +1,4 @@
-name: SignLiftPlugin
+name: SignLift
 main: org.bspfsystems.signlift.bukkit.SignLiftPlugin
 website: https://github.com/bspfsystems/SignLift/
 version: 2.2.0

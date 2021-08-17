@@ -63,7 +63,7 @@ public final class SignLiftTabExecutor implements TabExecutor {
     
         final Player player = (Player) sender;
         final Server server = this.signLiftPlugin.getServer();
-        final List<String> argsList = Arrays.asList(args);
+        final List<String> argsList = new ArrayList<String>(Arrays.asList(args));
     
         if (commandName.equalsIgnoreCase("signlift")) {
             if (argsList.isEmpty()) {
@@ -433,7 +433,7 @@ public final class SignLiftTabExecutor implements TabExecutor {
         
         final Player player = (Player) sender;
         final Server server = this.signLiftPlugin.getServer();
-        final List<String> argsList = Arrays.asList(args);
+        final List<String> argsList = new ArrayList<String>(Arrays.asList(args));
         final List<String> completions = new ArrayList<String>();
         
         if (commandName.equalsIgnoreCase("signlift")) {

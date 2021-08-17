@@ -89,112 +89,147 @@ public final class ConfigData {
      *                {@code false} otherwise (during initial plugin loading).
      */
     public static void reloadConfig(@NotNull final SignLiftPlugin signLiftPlugin, @NotNull final CommandSender sender, final boolean command) {
-        
+        if (command) {
+            signLiftPlugin.getServer().getScheduler().runTaskAsynchronously(signLiftPlugin, () -> ConfigData.performReload(signLiftPlugin, sender, command));
+        } else {
+            ConfigData.performReload(signLiftPlugin, sender, command);
+        }
+    }
+    
+    /**
+     * Performs the actual logic of reloading the configuration.
+     *
+     * @param signLiftPlugin The {@link SignLiftPlugin}.
+     * @param sender The {@link CommandSender} triggering the reload.
+     * @param command {@code true} if this was triggered by a command,
+     *                {@code false} otherwise (during initial plugin loading).
+     */
+    private static void performReload(@NotNull final SignLiftPlugin signLiftPlugin, @NotNull final CommandSender sender, final boolean command) {
+    
+    
         final Logger logger = signLiftPlugin.getLogger();
         final BukkitScheduler scheduler = signLiftPlugin.getServer().getScheduler();
-        scheduler.runTaskAsynchronously(signLiftPlugin, () -> {
-            
-            File configFile = new File(signLiftPlugin.getDataFolder(), "signlift.yml");
-            try {
-                
-                if (!configFile.exists() || !configFile.isFile()) {
-                    configFile = new File(signLiftPlugin.getDataFolder(), "config.yml");
-                }
-                
-                if (configFile.exists()) {
-                    if (!configFile.isFile()) {
-                        if (command) {
-                            sender.sendMessage("§r§cAn error has occurred while reloading the SignLift configuration. Please try again. If the error persists, please contact a server administrator.§r");
-                        }
-                        logger.log(Level.WARNING, "SignLift configuration file is not a file: " + configFile.getPath());
-                        logger.log(Level.WARNING, "SignLift will use the default configuration.");
-                        scheduler.runTask(signLiftPlugin, ConfigData::setDefaults);
-                        return;
-                    }
-                } else {
-                    if (!configFile.createNewFile()) {
-                        if (command) {
-                            sender.sendMessage("§r§cAn error has occurred while reloading the SignLift configuration. Please try again. If the error persists, please contact a server administrator.§r");
-                        }
-                        logger.log(Level.WARNING, "SignLift configuration file not created at " + configFile.getPath());
-                        logger.log(Level.WARNING, "SignLift will use the default configuration.");
-                        scheduler.runTask(signLiftPlugin, ConfigData::setDefaults);
-                        return;
-                    }
-                    
-                    final InputStream defaultConfig = signLiftPlugin.getResource(configFile.getName());
-                    final FileOutputStream outputStream = new FileOutputStream(configFile);
-                    final byte[] buffer = new byte[4096];
-                    int bytesRead;
-                    
-                    if (defaultConfig == null) {
-                        if (command) {
-                            sender.sendMessage("§r§cAn error has occurred while reloading the SignLift configuration. Please try again. If the error persists, please contact a server administrator.§r");
-                        }
-                        logger.log(Level.WARNING, "SignLift default configuration file not found. Possible compilation/build issue with the plugin.");
-                        logger.log(Level.WARNING, "SignLift will use the default configuration.");
-                        scheduler.runTask(signLiftPlugin, ConfigData::setDefaults);
-                        return;
-                    }
-                    
-                    while ((bytesRead = defaultConfig.read(buffer)) != -1) {
-                        outputStream.write(buffer, 0, bytesRead);
-                    }
-                    
-                    outputStream.flush();
-                    defaultConfig.close();
-                    
-                    if (command) {
-                        sender.sendMessage("§r§cThe SignLift configuration file did not exist; a copy of the default has been made and placed in the correct location.§r");
-                        sender.sendMessage("§r§cPlease update the configuration as required for the installation, and then run§r §b/signlift reload config§r§c.§r");
-                    }
-                    
-                    logger.log(Level.WARNING, "SignLift configuration file did not exist at " + configFile.getPath());
-                    logger.log(Level.WARNING, "SignLift will use the default configuration.");
-                    logger.log(Level.WARNING, "Please update the configuration as required for your installation, and then run \"/signlift reload config\".");
-                }
-            } catch (SecurityException | IOException e) {
-                if (command) {
-                    sender.sendMessage("§r§cAn error has occurred while reloading the SignLift configuration. Please try again. If the error persists, please contact a server administrator.§r");
-                }
-                logger.log(Level.WARNING, "Unable to load the SignLift configuration file.");
-                logger.log(Level.WARNING, "SignLift will use the default configuration.");
-                logger.log(Level.WARNING, e.getClass().getSimpleName() + " thrown.", e);
-                scheduler.runTask(signLiftPlugin, ConfigData::setDefaults);
-                return;
-            }
-            
-            final YamlConfiguration config = new YamlConfiguration();
-            try {
-                config.load(configFile);
-            } catch (IOException | IllegalArgumentException | InvalidConfigurationException e) {
-                if (command) {
-                    sender.sendMessage("§r§cAn error has occurred while reloading the SignLift configuration. Please try again. If the error persists, please contact a server administrator.§r");
-                }
-                logger.log(Level.WARNING, "Unable to load the SignLift configuration.");
-                logger.log(Level.WARNING, "SignLift will use the default configuration.");
-                logger.log(Level.WARNING, e.getClass().getSimpleName() + " thrown.", e);
-                scheduler.runTask(signLiftPlugin, ConfigData::setDefaults);
-                return;
-            }
-            
-            scheduler.runTask(signLiftPlugin, () -> {
     
-                ConfigData.checkDestination = config.getBoolean(ConfigData.KEY_CHECK_DESTINATION, ConfigData.DEFAULT_CHECK_DESTINATION);
-                ConfigData.relativeTeleporting = config.getBoolean(ConfigData.KEY_RELATIVE_TELEPORTING, ConfigData.DEFAULT_RELATIVE_TELEPORTING);
-                ConfigData.directionNone = config.getString(ConfigData.KEY_DIRECTION_NONE, ConfigData.DEFAULT_DIRECTION_NONE);
-                ConfigData.directionUp = config.getString(ConfigData.KEY_DIRECTION_UP, ConfigData.DEFAULT_DIRECTION_UP);
-                ConfigData.directionDown = config.getString(ConfigData.KEY_DIRECTION_DOWN, ConfigData.DEFAULT_DIRECTION_DOWN);
-                ConfigData.publicStart = config.getString(ConfigData.KEY_PUBLIC_START, ConfigData.DEFAULT_PUBLIC_START);
-                ConfigData.publicEnd = config.getString(ConfigData.KEY_PUBLIC_END, ConfigData.DEFAULT_PUBLIC_END);
-                ConfigData.privateStart = config.getString(ConfigData.KEY_PRIVATE_START, ConfigData.DEFAULT_PRIVATE_START);
-                ConfigData.privateEnd = config.getString(ConfigData.KEY_PRIVATE_END, ConfigData.DEFAULT_PRIVATE_END);
-                
-                if (command) {
-                    sender.sendMessage("§r§aThe SignLift configuration has been reloaded. Please verify that all LiftSigns are working as intended.§r");
+        File configFile = new File(signLiftPlugin.getDataFolder(), "signlift.yml");
+        try {
+        
+            if (!configFile.exists() || !configFile.isFile()) {
+                configFile = new File(signLiftPlugin.getDataFolder(), "config.yml");
+            }
+        
+            if (configFile.exists()) {
+                if (!configFile.isFile()) {
+                    logger.log(Level.WARNING, "SignLift configuration file is not a file: " + configFile.getPath());
+                    logger.log(Level.WARNING, "SignLift will use the default configuration.");
+                    if (command) {
+                        sender.sendMessage("§r§cAn error has occurred while reloading the SignLift configuration. Please try again. If the error persists, please contact a server administrator.§r");
+                        scheduler.runTask(signLiftPlugin, ConfigData::setDefaults);
+                    } else {
+                        ConfigData.setDefaults();
+                    }
+                    
+                    return;
                 }
+            } else {
+                if (!configFile.createNewFile()) {
+                    logger.log(Level.WARNING, "SignLift configuration file not created at " + configFile.getPath());
+                    logger.log(Level.WARNING, "SignLift will use the default configuration.");
+                    if (command) {
+                        sender.sendMessage("§r§cAn error has occurred while reloading the SignLift configuration. Please try again. If the error persists, please contact a server administrator.§r");
+                        scheduler.runTask(signLiftPlugin, ConfigData::setDefaults);
+                    } else {
+                        ConfigData.setDefaults();
+                    }
+                    return;
+                }
+            
+                final InputStream defaultConfig = signLiftPlugin.getResource(configFile.getName());
+                final FileOutputStream outputStream = new FileOutputStream(configFile);
+                final byte[] buffer = new byte[4096];
+                int bytesRead;
+            
+                if (defaultConfig == null) {
+                    logger.log(Level.WARNING, "SignLift default configuration file not found. Possible compilation/build issue with the plugin.");
+                    logger.log(Level.WARNING, "SignLift will use the default configuration.");
+                    if (command) {
+                        sender.sendMessage("§r§cAn error has occurred while reloading the SignLift configuration. Please try again. If the error persists, please contact a server administrator.§r");
+                        scheduler.runTask(signLiftPlugin, ConfigData::setDefaults);
+                    } else {
+                        ConfigData.setDefaults();
+                    }
+                    return;
+                }
+            
+                while ((bytesRead = defaultConfig.read(buffer)) != -1) {
+                    outputStream.write(buffer, 0, bytesRead);
+                }
+            
+                outputStream.flush();
+                defaultConfig.close();
+            
+                if (command) {
+                    sender.sendMessage("§r§cThe SignLift configuration file did not exist; a copy of the default has been made and placed in the correct location.§r");
+                    sender.sendMessage("§r§cPlease update the configuration as required for the installation, and then run§r §b/signlift reload config§r§c.§r");
+                }
+            
+                logger.log(Level.WARNING, "SignLift configuration file did not exist at " + configFile.getPath());
+                logger.log(Level.WARNING, "SignLift will use the default configuration.");
+                logger.log(Level.WARNING, "Please update the configuration as required for your installation, and then run \"/signlift reload config\".");
+            }
+        } catch (SecurityException | IOException e) {
+            logger.log(Level.WARNING, "Unable to load the SignLift configuration file.");
+            logger.log(Level.WARNING, "SignLift will use the default configuration.");
+            logger.log(Level.WARNING, e.getClass().getSimpleName() + " thrown.", e);
+            if (command) {
+                sender.sendMessage("§r§cAn error has occurred while reloading the SignLift configuration. Please try again. If the error persists, please contact a server administrator.§r");
+                scheduler.runTask(signLiftPlugin, ConfigData::setDefaults);
+            } else {
+                ConfigData.setDefaults();
+            }
+            return;
+        }
+    
+        final YamlConfiguration config = new YamlConfiguration();
+        try {
+            config.load(configFile);
+        } catch (IOException | IllegalArgumentException | InvalidConfigurationException e) {
+            logger.log(Level.WARNING, "Unable to load the SignLift configuration.");
+            logger.log(Level.WARNING, "SignLift will use the default configuration.");
+            logger.log(Level.WARNING, e.getClass().getSimpleName() + " thrown.", e);
+            if (command) {
+                sender.sendMessage("§r§cAn error has occurred while reloading the SignLift configuration. Please try again. If the error persists, please contact a server administrator.§r");
+                scheduler.runTask(signLiftPlugin, ConfigData::setDefaults);
+            } else {
+                ConfigData.setDefaults();
+            }
+            return;
+        }
+        
+        if (command) {
+            scheduler.runTask(signLiftPlugin, () -> {
+                ConfigData.setValues(config);
+                sender.sendMessage("§r§aThe SignLift configuration has been reloaded. Please verify that all LiftSigns are working as intended.§r");
             });
-        });
+        } else {
+            ConfigData.setValues(config);
+        }
+    }
+    
+    /**
+     * Performs the logic for setting the values from the configuration.
+     * 
+     * @param config The {@link YamlConfiguration} to set the values from.
+     */
+    private static void setValues(@NotNull final YamlConfiguration config) {
+        ConfigData.checkDestination = config.getBoolean(ConfigData.KEY_CHECK_DESTINATION, ConfigData.DEFAULT_CHECK_DESTINATION);
+        ConfigData.relativeTeleporting = config.getBoolean(ConfigData.KEY_RELATIVE_TELEPORTING, ConfigData.DEFAULT_RELATIVE_TELEPORTING);
+        ConfigData.directionNone = config.getString(ConfigData.KEY_DIRECTION_NONE, ConfigData.DEFAULT_DIRECTION_NONE);
+        ConfigData.directionUp = config.getString(ConfigData.KEY_DIRECTION_UP, ConfigData.DEFAULT_DIRECTION_UP);
+        ConfigData.directionDown = config.getString(ConfigData.KEY_DIRECTION_DOWN, ConfigData.DEFAULT_DIRECTION_DOWN);
+        ConfigData.publicStart = config.getString(ConfigData.KEY_PUBLIC_START, ConfigData.DEFAULT_PUBLIC_START);
+        ConfigData.publicEnd = config.getString(ConfigData.KEY_PUBLIC_END, ConfigData.DEFAULT_PUBLIC_END);
+        ConfigData.privateStart = config.getString(ConfigData.KEY_PRIVATE_START, ConfigData.DEFAULT_PRIVATE_START);
+        ConfigData.privateEnd = config.getString(ConfigData.KEY_PRIVATE_END, ConfigData.DEFAULT_PRIVATE_END);
     }
     
     /**

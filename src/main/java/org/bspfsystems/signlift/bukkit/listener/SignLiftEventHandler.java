@@ -329,7 +329,7 @@ public final class SignLiftEventHandler implements Listener {
      */
     @EventHandler
     public void onPlayerCommandSend(final PlayerCommandSendEvent event) {
-        event.getCommands().removeAll(signLiftPlugin.onPlayerCommandSend(event.getPlayer()));
+        event.getCommands().removeAll(this.signLiftPlugin.onPlayerCommandSend(event.getPlayer()));
     }
     
     /**

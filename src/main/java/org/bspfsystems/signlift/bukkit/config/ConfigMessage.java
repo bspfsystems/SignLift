@@ -214,147 +214,183 @@ public final class ConfigMessage {
      *                {@code false} otherwise (during initial plugin loading).
      */
     public static void reloadMessages(@NotNull final SignLiftPlugin signLiftPlugin, @NotNull final CommandSender sender, final boolean command) {
-        
+        if (command) {
+            signLiftPlugin.getServer().getScheduler().runTaskAsynchronously(signLiftPlugin, () -> ConfigMessage.performReload(signLiftPlugin, sender, command));
+        } else {
+            ConfigMessage.performReload(signLiftPlugin, sender, command);
+        }
+    }
+    
+    /**
+     * Performs the actual logic of reloading the messages.
+     * 
+     * @param signLiftPlugin The {@link SignLiftPlugin}.
+     * @param sender The {@link CommandSender} triggering the reload.
+     * @param command {@code true} if this was triggered by a command,
+     *                {@code false} otherwise (during initial plugin loading).
+     */
+    private static void performReload(@NotNull final SignLiftPlugin signLiftPlugin, @NotNull final CommandSender sender, final boolean command) {
+    
         final Logger logger = signLiftPlugin.getLogger();
         final BukkitScheduler scheduler = signLiftPlugin.getServer().getScheduler();
-        scheduler.runTaskAsynchronously(signLiftPlugin, () -> {
-            
-            File messagesFile = new File(signLiftPlugin.getDataFolder(), "messages.yml");
-            try {
     
-                if (messagesFile.exists()) {
-                    if (!messagesFile.isFile()) {
-                        if (command) {
-                            sender.sendMessage("§r§cAn error has occurred while reloading the SignLift messages. Please try again. If the error persists, please contact a server administrator.§r");
-                        }
-                        logger.log(Level.WARNING, "SignLift messages file is not a file: " + messagesFile.getPath());
-                        logger.log(Level.WARNING, "SignLift will use the default messages.");
-                        scheduler.runTask(signLiftPlugin, ConfigMessage::setDefaults);
-                        return;
-                    }
-                } else {
-                    if (!messagesFile.createNewFile()) {
-                        if (command) {
-                            sender.sendMessage("§r§cAn error has occurred while reloading the SignLift messages. Please try again. If the error persists, please contact a server administrator.§r");
-                        }
-                        logger.log(Level.WARNING, "SignLift messages file not created at " + messagesFile.getPath());
-                        logger.log(Level.WARNING, "SignLift will use the default messages.");
-                        scheduler.runTask(signLiftPlugin, ConfigMessage::setDefaults);
-                        return;
-                    }
-                    
-                    final InputStream defaultMessages = signLiftPlugin.getResource(messagesFile.getName());
-                    final FileOutputStream outputStream = new FileOutputStream(messagesFile);
-                    final byte[] buffer = new byte[4096];
-                    int bytesRead;
-                    
-                    if (defaultMessages == null) {
-                        if (command) {
-                            sender.sendMessage("§r§cAn error has occurred while reloading the SignLift messages. Please try again. If the error persists, please contact a server administrator.§r");
-                        }
-                        logger.log(Level.WARNING, "SignLift default messages file not found. Possible compilation/build issue with the plugin.");
-                        logger.log(Level.WARNING, "SignLift will use the default messages.");
-                        scheduler.runTask(signLiftPlugin, ConfigMessage::setDefaults);
-                        return;
-                    }
-                    
-                    while ((bytesRead = defaultMessages.read(buffer)) != -1) {
-                        outputStream.write(buffer, 0, bytesRead);
-                    }
-                    
-                    outputStream.flush();
-                    defaultMessages.close();
-                    
-                    if (command) {
-                        sender.sendMessage("§r§cThe SignLift messages file did not exist; a copy of the default has been made and placed in the correct location.§r");
-                        sender.sendMessage("§r§cPlease update the message as required for the installation, and then run§r §b/signlift reload message§r§c.§r");
-                    }
-    
-                    logger.log(Level.WARNING, "SignLift messages file did not exist at " + messagesFile.getPath());
+        File messagesFile = new File(signLiftPlugin.getDataFolder(), "messages.yml");
+        try {
+        
+            if (messagesFile.exists()) {
+                if (!messagesFile.isFile()) {
+                    logger.log(Level.WARNING, "SignLift messages file is not a file: " + messagesFile.getPath());
                     logger.log(Level.WARNING, "SignLift will use the default messages.");
-                    logger.log(Level.WARNING, "Please update the messages as required for your installation, and then run \"/signlift reload message\".");
+                    if (command) {
+                        sender.sendMessage("§r§cAn error has occurred while reloading the SignLift messages. Please try again. If the error persists, please contact a server administrator.§r");
+                        scheduler.runTask(signLiftPlugin, ConfigMessage::setDefaults);
+                    } else {
+                        ConfigMessage.setDefaults();
+                    }
+                    return;
                 }
-            } catch (SecurityException | IOException e) {
+            } else {
+                if (!messagesFile.createNewFile()) {
+                    logger.log(Level.WARNING, "SignLift messages file not created at " + messagesFile.getPath());
+                    logger.log(Level.WARNING, "SignLift will use the default messages.");
+                    if (command) {
+                        sender.sendMessage("§r§cAn error has occurred while reloading the SignLift messages. Please try again. If the error persists, please contact a server administrator.§r");
+                        scheduler.runTask(signLiftPlugin, ConfigMessage::setDefaults);
+                    } else {
+                        ConfigMessage.setDefaults();
+                    }
+                    return;
+                }
+            
+                final InputStream defaultMessages = signLiftPlugin.getResource(messagesFile.getName());
+                final FileOutputStream outputStream = new FileOutputStream(messagesFile);
+                final byte[] buffer = new byte[4096];
+                int bytesRead;
+            
+                if (defaultMessages == null) {
+                    logger.log(Level.WARNING, "SignLift default messages file not found. Possible compilation/build issue with the plugin.");
+                    logger.log(Level.WARNING, "SignLift will use the default messages.");
+                    if (command) {
+                        sender.sendMessage("§r§cAn error has occurred while reloading the SignLift messages. Please try again. If the error persists, please contact a server administrator.§r");
+                        scheduler.runTask(signLiftPlugin, ConfigMessage::setDefaults);
+                    } else {
+                        ConfigMessage.setDefaults();
+                    }
+                    return;
+                }
+            
+                while ((bytesRead = defaultMessages.read(buffer)) != -1) {
+                    outputStream.write(buffer, 0, bytesRead);
+                }
+            
+                outputStream.flush();
+                defaultMessages.close();
+            
                 if (command) {
-                    sender.sendMessage("§r§cAn error has occurred while reloading the SignLift messages. Please try again. If the error persists, please contact a server administrator.§r");
+                    sender.sendMessage("§r§cThe SignLift messages file did not exist; a copy of the default has been made and placed in the correct location.§r");
+                    sender.sendMessage("§r§cPlease update the message as required for the installation, and then run§r §b/signlift reload message§r§c.§r");
                 }
-                logger.log(Level.WARNING, "Unable to load the SignLift messages file.");
-                logger.log(Level.WARNING, "SignLift will use the default messages.");
-                logger.log(Level.WARNING, e.getClass().getSimpleName() + " thrown.", e);
-                scheduler.runTask(signLiftPlugin, ConfigMessage::setDefaults);
-                return;
-            }
             
-            final YamlConfiguration messages = new YamlConfiguration();
-            try {
-                messages.load(messagesFile);
-            } catch (IOException | IllegalArgumentException | InvalidConfigurationException e) {
-                logger.log(Level.WARNING, "Unable to load the SignLift messages.");
+                logger.log(Level.WARNING, "SignLift messages file did not exist at " + messagesFile.getPath());
                 logger.log(Level.WARNING, "SignLift will use the default messages.");
-                logger.log(Level.WARNING, e.getClass().getSimpleName() + " thrown.", e);
-                scheduler.runTask(signLiftPlugin, ConfigMessage::setDefaults);
-                return;
+                logger.log(Level.WARNING, "Please update the messages as required for your installation, and then run \"/signlift reload message\".");
             }
-            
+        } catch (SecurityException | IOException e) {
+            logger.log(Level.WARNING, "Unable to load the SignLift messages file.");
+            logger.log(Level.WARNING, "SignLift will use the default messages.");
+            logger.log(Level.WARNING, e.getClass().getSimpleName() + " thrown.", e);
+            if (command) {
+                sender.sendMessage("§r§cAn error has occurred while reloading the SignLift messages. Please try again. If the error persists, please contact a server administrator.§r");
+                scheduler.runTask(signLiftPlugin, ConfigMessage::setDefaults);
+            } else {
+                ConfigMessage.setDefaults();
+            }
+            return;
+        }
+    
+        final YamlConfiguration messages = new YamlConfiguration();
+        try {
+            messages.load(messagesFile);
+        } catch (IOException | IllegalArgumentException | InvalidConfigurationException e) {
+            logger.log(Level.WARNING, "Unable to load the SignLift messages.");
+            logger.log(Level.WARNING, "SignLift will use the default messages.");
+            logger.log(Level.WARNING, e.getClass().getSimpleName() + " thrown.", e);
+            if (command) {
+                sender.sendMessage("§r§cAn error has occurred while reloading the SignLift messages. Please try again. If the error persists, please contact a server administrator.§r");
+                scheduler.runTask(signLiftPlugin, ConfigMessage::setDefaults);
+            } else {
+                ConfigMessage.setDefaults();
+            }
+            return;
+        }
+    
+        if (command) {
             scheduler.runTask(signLiftPlugin, () -> {
-    
-                ConfigMessage.commandInfo = messages.getString(ConfigMessage.KEY_COMMAND_INFO, ConfigMessage.DEFAULT_COMMAND_INFO);
-                ConfigMessage.commandModify = messages.getString(ConfigMessage.KEY_COMMAND_MODIFY, ConfigMessage.DEFAULT_COMMAND_MODIFY);
-                ConfigMessage.commandDeny = messages.getString(ConfigMessage.KEY_COMMAND_DENY, ConfigMessage.DEFAULT_COMMAND_DENY);
-                ConfigMessage.liftsignInfoPublic = messages.getString(ConfigMessage.KEY_LIFTSIGN_INFO_PUBLIC, ConfigMessage.DEFAULT_LIFTSIGN_INFO_PUBLIC);
-                ConfigMessage.liftsignInfoPrivate = messages.getString(ConfigMessage.KEY_LIFTSIGN_INFO_PRIVATE, ConfigMessage.DEFAULT_LIFTSIGN_INFO_PRIVATE);
-                ConfigMessage.liftsignInfoError = messages.getString(ConfigMessage.KEY_LIFTSIGN_INFO_ERROR, ConfigMessage.DEFAULT_LIFTSIGN_INFO_ERROR);
-                ConfigMessage.liftsignInfoDeny = messages.getString(ConfigMessage.KEY_LIFTSIGN_INFO_DENY, ConfigMessage.DEFAULT_LIFTSIGN_INFO_DENY);
-                ConfigMessage.liftsignBuildDenyPublic = messages.getString(ConfigMessage.KEY_LIFTSIGN_BUILD_DENY_PUBLIC, ConfigMessage.DEFAULT_LIFTSIGN_BUILD_DENY_PUBLIC);
-                ConfigMessage.liftsignBuildDenyPrivate = messages.getString(ConfigMessage.KEY_LIFTSIGN_BUILD_DENY_PRIVATE, ConfigMessage.DEFAULT_LIFTSIGN_BUILD_DENY_PRIVATE);
-                ConfigMessage.liftsignCreatePublicAllow = messages.getString(ConfigMessage.KEY_LIFTSIGN_CREATE_PUBLIC_ALLOW, ConfigMessage.DEFAULT_LIFTSIGN_CREATE_PUBLIC_ALLOW);
-                ConfigMessage.liftsignCreatePublicDeny = messages.getString(ConfigMessage.KEY_LIFTSIGN_CREATE_PUBLIC_DENY, ConfigMessage.DEFAULT_LIFTSIGN_CREATE_PUBLIC_DENY);
-                ConfigMessage.liftsignCreatePublicError = messages.getString(ConfigMessage.KEY_LIFTSIGN_CREATE_PUBLIC_ERROR, ConfigMessage.DEFAULT_LIFTSIGN_CREATE_PUBLIC_ERROR);
-                ConfigMessage.liftsignCreatePrivateAllow = messages.getString(ConfigMessage.KEY_LIFTSIGN_CREATE_PRIVATE_ALLOW, ConfigMessage.DEFAULT_LIFTSIGN_CREATE_PRIVATE_ALLOW);
-                ConfigMessage.liftsignCreatePrivateDeny = messages.getString(ConfigMessage.KEY_LIFTSIGN_CREATE_PRIVATE_DENY, ConfigMessage.DEFAULT_LIFTSIGN_CREATE_PRIVATE_DENY);
-                ConfigMessage.liftsignCreatePrivateError = messages.getString(ConfigMessage.KEY_LIFTSIGN_CREATE_PRIVATE_ERROR, ConfigMessage.DEFAULT_LIFTSIGN_CREATE_PRIVATE_ERROR);
-                ConfigMessage.liftsignModifyPublic = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PUBLIC, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PUBLIC);
-                ConfigMessage.liftsignModifyPrivateOwnerAllow = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_OWNER_ALLOW, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_OWNER_ALLOW);
-                ConfigMessage.liftsignModifyPrivateOwnerDeny = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_OWNER_DENY, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_OWNER_DENY);
-                ConfigMessage.liftsignModifyPrivateAdminTrue = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_ADMIN_TRUE, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_ADMIN_TRUE);
-                ConfigMessage.liftsignModifyPrivateAdminChange = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_ADMIN_CHANGE, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_ADMIN_CHANGE);
-                ConfigMessage.liftsignModifyPrivateAdminFalse = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_ADMIN_FALSE, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_ADMIN_FALSE);
-                ConfigMessage.liftsignModifyPrivateAdminDeny = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_ADMIN_DENY, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_ADMIN_DENY);
-                ConfigMessage.liftsignModifyPrivateMemberTrue = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_MEMBER_TRUE, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_MEMBER_TRUE);
-                ConfigMessage.liftsignModifyPrivateMemberChange = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_MEMBER_CHANGE, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_MEMBER_CHANGE);
-                ConfigMessage.liftsignModifyPrivateMemberFalse = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_MEMBER_FALSE, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_MEMBER_FALSE);
-                ConfigMessage.liftsignModifyPrivateMemberDeny = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_MEMBER_DENY, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_MEMBER_DENY);
-                ConfigMessage.liftsignModifyPrivateRemoveTrue = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_REMOVE_TRUE, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_REMOVE_TRUE);
-                ConfigMessage.liftsignModifyPrivateRemoveFalse = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_REMOVE_FALSE, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_REMOVE_FALSE);
-                ConfigMessage.liftsignModifyPrivateRemoveDeny = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_REMOVE_DENY, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_REMOVE_DENY);
-                ConfigMessage.liftsignModifyPrivateUnknownUnknown = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_UNKNOWN_UNKNOWN, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_UNKNOWN_UNKNOWN);
-                ConfigMessage.liftsignModifyPrivateUnknownDeny = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_UNKNOWN_DENY, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_UNKNOWN_DENY);
-                ConfigMessage.liftsignModifyOther = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_OTHER, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_OTHER);
-                ConfigMessage.liftsignRemovePublicAllow = messages.getString(ConfigMessage.KEY_LIFTSIGN_REMOVE_PUBLIC_ALLOW, ConfigMessage.DEFAULT_LIFTSIGN_REMOVE_PUBLIC_ALLOW);
-                ConfigMessage.liftsignRemovePublicDeny = messages.getString(ConfigMessage.KEY_LIFTSIGN_REMOVE_PUBLIC_DENY, ConfigMessage.DEFAULT_LIFTSIGN_REMOVE_PUBLIC_DENY);
-                ConfigMessage.liftsignRemovePrivateAllow = messages.getString(ConfigMessage.KEY_LIFTSIGN_REMOVE_PRIVATE_ALLOW, ConfigMessage.DEFAULT_LIFTSIGN_REMOVE_PRIVATE_ALLOW);
-                ConfigMessage.liftsignRemovePrivateDeny = messages.getString(ConfigMessage.KEY_LIFTSIGN_REMOVE_PRIVATE_DENY, ConfigMessage.DEFAULT_LIFTSIGN_REMOVE_PRIVATE_DENY);
-                ConfigMessage.liftsignRemoveAttachedAllow = messages.getString(ConfigMessage.KEY_LIFTSIGN_REMOVE_ATTACHED_ALLOW, ConfigMessage.DEFAULT_LIFTSIGN_REMOVE_ATTACHED_ALLOW);
-                ConfigMessage.liftsignRemoveAttachedDeny = messages.getString(ConfigMessage.KEY_LIFTSIGN_REMOVE_ATTACHED_DENY, ConfigMessage.DEFAULT_LIFTSIGN_REMOVE_ATTACHED_DENY);
-                ConfigMessage.liftsignUseNoneDefault = messages.getString(ConfigMessage.KEY_LIFTSIGN_USE_NONE_DEFAULT, ConfigMessage.DEFAULT_LIFTSIGN_USE_NONE_DEFAULT);
-                ConfigMessage.liftsignUseUpDefault = messages.getString(ConfigMessage.KEY_LIFTSIGN_USE_UP_DEFAULT, ConfigMessage.DEFAULT_LIFTSIGN_USE_UP_DEFAULT);
-                ConfigMessage.liftsignUseUpCustom = messages.getString(ConfigMessage.KEY_LIFTSIGN_USE_UP_CUSTOM, ConfigMessage.DEFAULT_LIFTSIGN_USE_UP_CUSTOM);
-                ConfigMessage.liftsignUseDownDefault = messages.getString(ConfigMessage.KEY_LIFTSIGN_USE_DOWN_DEFAULT, ConfigMessage.DEFAULT_LIFTSIGN_USE_DOWN_DEFAULT);
-                ConfigMessage.liftsignUseDownCustom = messages.getString(ConfigMessage.KEY_LIFTSIGN_USE_DOWN_CUSTOM, ConfigMessage.DEFAULT_LIFTSIGN_USE_DOWN_CUSTOM);
-                ConfigMessage.liftsignUseDenyPublic = messages.getString(ConfigMessage.KEY_LIFTSIGN_USE_DENY_PUBLIC, ConfigMessage.DEFAULT_LIFTSIGN_USE_DENY_PUBLIC);
-                ConfigMessage.liftsignUseDenyPrivate = messages.getString(ConfigMessage.KEY_LIFTSIGN_USE_DENY_PRIVATE, ConfigMessage.DEFAULT_LIFTSIGN_USE_DENY_PRIVATE);
-                ConfigMessage.liftsignUseDisconnectedPublic = messages.getString(ConfigMessage.KEY_LIFTSIGN_USE_DISCONNECTED_PUBLIC, ConfigMessage.DEFAULT_LIFTSIGN_USE_DISCONNECTED_PUBLIC);
-                ConfigMessage.liftsignUseDisconnectedPrivate = messages.getString(ConfigMessage.KEY_LIFTSIGN_USE_DISCONNECTED_PRIVATE, ConfigMessage.DEFAULT_LIFTSIGN_USE_DISCONNECTED_PRIVATE);
-                ConfigMessage.liftsignUseBlockedPublic = messages.getString(ConfigMessage.KEY_LIFTSIGN_USE_BLOCKED_PUBLIC, ConfigMessage.DEFAULT_LIFTSIGN_USE_BLOCKED_PUBLIC);
-                ConfigMessage.liftsignUseBlockedPrivate = messages.getString(ConfigMessage.KEY_LIFTSIGN_USE_BLOCKED_PRIVATE, ConfigMessage.DEFAULT_LIFTSIGN_USE_BLOCKED_PRIVATE);
-                ConfigMessage.liftsignFileErrorSave = messages.getString(ConfigMessage.KEY_LIFTSIGN_FILE_ERROR_SAVE, ConfigMessage.DEFAULT_LIFTSIGN_FILE_ERROR_SAVE);
-                ConfigMessage.liftsignFileErrorDelete = messages.getString(ConfigMessage.KEY_LIFTSIGN_FILE_ERROR_DELETE, ConfigMessage.DEFAULT_LIFTSIGN_FILE_ERROR_DELETE);
-    
-                if (command) {
-                    sender.sendMessage("§r§aThe SignLift messages have been reloaded. Please verify that all LiftSign messages are working as intended.§r");
-                }
+                ConfigMessage.setMessages(messages);
+                sender.sendMessage("§r§aThe SignLift messages have been reloaded. Please verify that all LiftSign messages are working as intended.§r");
             });
-        });
+        } else {
+            ConfigMessage.setMessages(messages);
+        }
+    }
+    
+    /**
+     * Performs the logic for setting the messages from the configuration.
+     * 
+     * @param messages The {@link YamlConfiguration} to set the messages from.
+     */
+    private static void setMessages(@NotNull final YamlConfiguration messages) {
+        ConfigMessage.commandInfo = messages.getString(ConfigMessage.KEY_COMMAND_INFO, ConfigMessage.DEFAULT_COMMAND_INFO);
+        ConfigMessage.commandModify = messages.getString(ConfigMessage.KEY_COMMAND_MODIFY, ConfigMessage.DEFAULT_COMMAND_MODIFY);
+        ConfigMessage.commandDeny = messages.getString(ConfigMessage.KEY_COMMAND_DENY, ConfigMessage.DEFAULT_COMMAND_DENY);
+        ConfigMessage.liftsignInfoPublic = messages.getString(ConfigMessage.KEY_LIFTSIGN_INFO_PUBLIC, ConfigMessage.DEFAULT_LIFTSIGN_INFO_PUBLIC);
+        ConfigMessage.liftsignInfoPrivate = messages.getString(ConfigMessage.KEY_LIFTSIGN_INFO_PRIVATE, ConfigMessage.DEFAULT_LIFTSIGN_INFO_PRIVATE);
+        ConfigMessage.liftsignInfoError = messages.getString(ConfigMessage.KEY_LIFTSIGN_INFO_ERROR, ConfigMessage.DEFAULT_LIFTSIGN_INFO_ERROR);
+        ConfigMessage.liftsignInfoDeny = messages.getString(ConfigMessage.KEY_LIFTSIGN_INFO_DENY, ConfigMessage.DEFAULT_LIFTSIGN_INFO_DENY);
+        ConfigMessage.liftsignBuildDenyPublic = messages.getString(ConfigMessage.KEY_LIFTSIGN_BUILD_DENY_PUBLIC, ConfigMessage.DEFAULT_LIFTSIGN_BUILD_DENY_PUBLIC);
+        ConfigMessage.liftsignBuildDenyPrivate = messages.getString(ConfigMessage.KEY_LIFTSIGN_BUILD_DENY_PRIVATE, ConfigMessage.DEFAULT_LIFTSIGN_BUILD_DENY_PRIVATE);
+        ConfigMessage.liftsignCreatePublicAllow = messages.getString(ConfigMessage.KEY_LIFTSIGN_CREATE_PUBLIC_ALLOW, ConfigMessage.DEFAULT_LIFTSIGN_CREATE_PUBLIC_ALLOW);
+        ConfigMessage.liftsignCreatePublicDeny = messages.getString(ConfigMessage.KEY_LIFTSIGN_CREATE_PUBLIC_DENY, ConfigMessage.DEFAULT_LIFTSIGN_CREATE_PUBLIC_DENY);
+        ConfigMessage.liftsignCreatePublicError = messages.getString(ConfigMessage.KEY_LIFTSIGN_CREATE_PUBLIC_ERROR, ConfigMessage.DEFAULT_LIFTSIGN_CREATE_PUBLIC_ERROR);
+        ConfigMessage.liftsignCreatePrivateAllow = messages.getString(ConfigMessage.KEY_LIFTSIGN_CREATE_PRIVATE_ALLOW, ConfigMessage.DEFAULT_LIFTSIGN_CREATE_PRIVATE_ALLOW);
+        ConfigMessage.liftsignCreatePrivateDeny = messages.getString(ConfigMessage.KEY_LIFTSIGN_CREATE_PRIVATE_DENY, ConfigMessage.DEFAULT_LIFTSIGN_CREATE_PRIVATE_DENY);
+        ConfigMessage.liftsignCreatePrivateError = messages.getString(ConfigMessage.KEY_LIFTSIGN_CREATE_PRIVATE_ERROR, ConfigMessage.DEFAULT_LIFTSIGN_CREATE_PRIVATE_ERROR);
+        ConfigMessage.liftsignModifyPublic = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PUBLIC, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PUBLIC);
+        ConfigMessage.liftsignModifyPrivateOwnerAllow = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_OWNER_ALLOW, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_OWNER_ALLOW);
+        ConfigMessage.liftsignModifyPrivateOwnerDeny = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_OWNER_DENY, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_OWNER_DENY);
+        ConfigMessage.liftsignModifyPrivateAdminTrue = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_ADMIN_TRUE, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_ADMIN_TRUE);
+        ConfigMessage.liftsignModifyPrivateAdminChange = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_ADMIN_CHANGE, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_ADMIN_CHANGE);
+        ConfigMessage.liftsignModifyPrivateAdminFalse = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_ADMIN_FALSE, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_ADMIN_FALSE);
+        ConfigMessage.liftsignModifyPrivateAdminDeny = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_ADMIN_DENY, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_ADMIN_DENY);
+        ConfigMessage.liftsignModifyPrivateMemberTrue = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_MEMBER_TRUE, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_MEMBER_TRUE);
+        ConfigMessage.liftsignModifyPrivateMemberChange = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_MEMBER_CHANGE, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_MEMBER_CHANGE);
+        ConfigMessage.liftsignModifyPrivateMemberFalse = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_MEMBER_FALSE, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_MEMBER_FALSE);
+        ConfigMessage.liftsignModifyPrivateMemberDeny = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_MEMBER_DENY, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_MEMBER_DENY);
+        ConfigMessage.liftsignModifyPrivateRemoveTrue = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_REMOVE_TRUE, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_REMOVE_TRUE);
+        ConfigMessage.liftsignModifyPrivateRemoveFalse = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_REMOVE_FALSE, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_REMOVE_FALSE);
+        ConfigMessage.liftsignModifyPrivateRemoveDeny = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_REMOVE_DENY, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_REMOVE_DENY);
+        ConfigMessage.liftsignModifyPrivateUnknownUnknown = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_UNKNOWN_UNKNOWN, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_UNKNOWN_UNKNOWN);
+        ConfigMessage.liftsignModifyPrivateUnknownDeny = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_PRIVATE_UNKNOWN_DENY, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_PRIVATE_UNKNOWN_DENY);
+        ConfigMessage.liftsignModifyOther = messages.getString(ConfigMessage.KEY_LIFTSIGN_MODIFY_OTHER, ConfigMessage.DEFAULT_LIFTSIGN_MODIFY_OTHER);
+        ConfigMessage.liftsignRemovePublicAllow = messages.getString(ConfigMessage.KEY_LIFTSIGN_REMOVE_PUBLIC_ALLOW, ConfigMessage.DEFAULT_LIFTSIGN_REMOVE_PUBLIC_ALLOW);
+        ConfigMessage.liftsignRemovePublicDeny = messages.getString(ConfigMessage.KEY_LIFTSIGN_REMOVE_PUBLIC_DENY, ConfigMessage.DEFAULT_LIFTSIGN_REMOVE_PUBLIC_DENY);
+        ConfigMessage.liftsignRemovePrivateAllow = messages.getString(ConfigMessage.KEY_LIFTSIGN_REMOVE_PRIVATE_ALLOW, ConfigMessage.DEFAULT_LIFTSIGN_REMOVE_PRIVATE_ALLOW);
+        ConfigMessage.liftsignRemovePrivateDeny = messages.getString(ConfigMessage.KEY_LIFTSIGN_REMOVE_PRIVATE_DENY, ConfigMessage.DEFAULT_LIFTSIGN_REMOVE_PRIVATE_DENY);
+        ConfigMessage.liftsignRemoveAttachedAllow = messages.getString(ConfigMessage.KEY_LIFTSIGN_REMOVE_ATTACHED_ALLOW, ConfigMessage.DEFAULT_LIFTSIGN_REMOVE_ATTACHED_ALLOW);
+        ConfigMessage.liftsignRemoveAttachedDeny = messages.getString(ConfigMessage.KEY_LIFTSIGN_REMOVE_ATTACHED_DENY, ConfigMessage.DEFAULT_LIFTSIGN_REMOVE_ATTACHED_DENY);
+        ConfigMessage.liftsignUseNoneDefault = messages.getString(ConfigMessage.KEY_LIFTSIGN_USE_NONE_DEFAULT, ConfigMessage.DEFAULT_LIFTSIGN_USE_NONE_DEFAULT);
+        ConfigMessage.liftsignUseUpDefault = messages.getString(ConfigMessage.KEY_LIFTSIGN_USE_UP_DEFAULT, ConfigMessage.DEFAULT_LIFTSIGN_USE_UP_DEFAULT);
+        ConfigMessage.liftsignUseUpCustom = messages.getString(ConfigMessage.KEY_LIFTSIGN_USE_UP_CUSTOM, ConfigMessage.DEFAULT_LIFTSIGN_USE_UP_CUSTOM);
+        ConfigMessage.liftsignUseDownDefault = messages.getString(ConfigMessage.KEY_LIFTSIGN_USE_DOWN_DEFAULT, ConfigMessage.DEFAULT_LIFTSIGN_USE_DOWN_DEFAULT);
+        ConfigMessage.liftsignUseDownCustom = messages.getString(ConfigMessage.KEY_LIFTSIGN_USE_DOWN_CUSTOM, ConfigMessage.DEFAULT_LIFTSIGN_USE_DOWN_CUSTOM);
+        ConfigMessage.liftsignUseDenyPublic = messages.getString(ConfigMessage.KEY_LIFTSIGN_USE_DENY_PUBLIC, ConfigMessage.DEFAULT_LIFTSIGN_USE_DENY_PUBLIC);
+        ConfigMessage.liftsignUseDenyPrivate = messages.getString(ConfigMessage.KEY_LIFTSIGN_USE_DENY_PRIVATE, ConfigMessage.DEFAULT_LIFTSIGN_USE_DENY_PRIVATE);
+        ConfigMessage.liftsignUseDisconnectedPublic = messages.getString(ConfigMessage.KEY_LIFTSIGN_USE_DISCONNECTED_PUBLIC, ConfigMessage.DEFAULT_LIFTSIGN_USE_DISCONNECTED_PUBLIC);
+        ConfigMessage.liftsignUseDisconnectedPrivate = messages.getString(ConfigMessage.KEY_LIFTSIGN_USE_DISCONNECTED_PRIVATE, ConfigMessage.DEFAULT_LIFTSIGN_USE_DISCONNECTED_PRIVATE);
+        ConfigMessage.liftsignUseBlockedPublic = messages.getString(ConfigMessage.KEY_LIFTSIGN_USE_BLOCKED_PUBLIC, ConfigMessage.DEFAULT_LIFTSIGN_USE_BLOCKED_PUBLIC);
+        ConfigMessage.liftsignUseBlockedPrivate = messages.getString(ConfigMessage.KEY_LIFTSIGN_USE_BLOCKED_PRIVATE, ConfigMessage.DEFAULT_LIFTSIGN_USE_BLOCKED_PRIVATE);
+        ConfigMessage.liftsignFileErrorSave = messages.getString(ConfigMessage.KEY_LIFTSIGN_FILE_ERROR_SAVE, ConfigMessage.DEFAULT_LIFTSIGN_FILE_ERROR_SAVE);
+        ConfigMessage.liftsignFileErrorDelete = messages.getString(ConfigMessage.KEY_LIFTSIGN_FILE_ERROR_DELETE, ConfigMessage.DEFAULT_LIFTSIGN_FILE_ERROR_DELETE);
     }
     
     /**

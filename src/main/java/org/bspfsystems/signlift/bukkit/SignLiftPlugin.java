@@ -114,6 +114,11 @@ public final class SignLiftPlugin extends JavaPlugin {
         this.server = this.getServer();
         this.scheduler = this.server.getScheduler();
         
+        // Configuration setup
+    
+        this.reloadConfig(this.server.getConsoleSender(), false);
+        this.reloadMessages(this.server.getConsoleSender(), false);
+        
         // Command handling setup
         
         final TabExecutor signLiftTabExecutor = new SignLiftTabExecutor(this);
@@ -189,9 +194,15 @@ public final class SignLiftPlugin extends JavaPlugin {
                 continue;
             }
             
-            final PlayerDataEntry playerDataEntry = PlayerDataEntry.deserialize(playerDataConfig);
-            this.nameToUniqueId.put(playerDataEntry.getName().toLowerCase(), playerDataEntry.getUniqueId());
-            this.uniqueIdToName.put(playerDataEntry.getUniqueId(), playerDataEntry.getName());
+            try {
+                final PlayerDataEntry playerDataEntry = PlayerDataEntry.deserialize(playerDataConfig);
+                this.nameToUniqueId.put(playerDataEntry.getName().toLowerCase(), playerDataEntry.getUniqueId());
+                this.uniqueIdToName.put(playerDataEntry.getUniqueId(), playerDataEntry.getName());
+            } catch (IllegalArgumentException e) {
+                this.logger.log(Level.WARNING, "Could not deserialize PlayerDataEntry configuration file at " + playerDataConfigFile.getPath());
+                this.logger.log(Level.WARNING, "Skipping PlayerDataEntry.");
+                this.logger.log(Level.WARNING, e.getClass().getSimpleName() + " thrown.", e);
+            }
         }
         
         // PrivateLiftSign loading
@@ -253,9 +264,6 @@ public final class SignLiftPlugin extends JavaPlugin {
         this.pendingModifications = new ConcurrentHashMap<UUID, ChangeData>();
         
         this.server.getPluginManager().registerEvents(new SignLiftEventHandler(this), this);
-        
-        this.reloadConfig(this.server.getConsoleSender(), false);
-        this.reloadMessages(this.server.getConsoleSender(), false);
     }
     
     /**
@@ -345,7 +353,7 @@ public final class SignLiftPlugin extends JavaPlugin {
         final Collection<String> removals = new HashSet<String>();
         for (final String commandName : this.getDescription().getCommands().keySet()) {
             
-            removals.add(this.getDescription().getName() + ":" + commandName);
+            removals.add(this.getDescription().getName().toLowerCase() + ":" + commandName);
             final PluginCommand command = this.server.getPluginCommand(commandName);
             if (command != null && !command.testPermissionSilent(player)) {
                 removals.add(commandName);
@@ -916,7 +924,7 @@ public final class SignLiftPlugin extends JavaPlugin {
         this.privateLiftSigns.put(privateLiftSign.getLocation(), privateLiftSign);
         this.scheduler.runTaskAsynchronously(this, () -> {
         
-            final File configFile = new File(this.playerDataFolder, this.getConfigFileName(privateLiftSign));
+            final File configFile = new File(this.privateLiftSignFolder, this.getConfigFileName(privateLiftSign));
             try {
                 if (!configFile.exists()) {
                     if (!configFile.createNewFile()) {
